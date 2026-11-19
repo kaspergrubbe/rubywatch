@@ -2,7 +2,7 @@
 
 Live tracker at [rubywatch.speedshop.co](https://rubywatch.speedshop.co). It shows how fast each Ruby patch release reaches installers, container images, CI and hosting platforms.
 
-Based on [How fast can you actually patch Ruby?](https://paagman.dev/how-fast-can-you-patch-ruby/) by Dennis Paagman.
+Based on [How fast can you actually patch Ruby?](https://paagman.dev/how-fast-can-you-patch-ruby/) by Dennis Paagman, and its follow-up [Can you patch Ruby faster now?](https://paagman.dev/can-you-patch-ruby-faster-now/).
 
 ## How it works
 
