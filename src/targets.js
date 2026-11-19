@@ -291,8 +291,16 @@ export const groups = [
         name: "Railway",
         note: "Railpack compiles via mise once mise lists the version",
         url: "https://railpack.com/languages/ruby#precompiled-ruby",
-        probe: (net, { version }) =>
-          fileHas(net, "https://mise-versions.jdx.dev/data/ruby.toml", new RegExp(`^"${version.replaceAll(".", "\\.")}" =`, "m")),
+        probe: async (net, { version }) => {
+          const listed = new RegExp(`^"${version.replaceAll(".", "\\.")}" =`, "m");
+          let first = null;
+          for (const commit of (await atom(net, "jdx/mise-versions", "commits/main/docs/ruby.toml")).slice(0, 4)) {
+            const file = await net.text(`${raw}/jdx/mise-versions/${commit.tag}/docs/ruby.toml`);
+            if (!listed.test(file ?? "")) break;
+            first = commit;
+          }
+          return first && found(first.at);
+        },
       },
       {
         id: "fly-kamal",
