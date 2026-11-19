@@ -35,10 +35,14 @@ async function latestReleases(env, net) {
   if (statements.length) await env.DB.batch(statements);
 }
 
+function newestPerSeries(releases) {
+  const patch = (r) => Number(r.version.split(".")[2]);
+  return SERIES.map((s) => releases.filter((r) => r.series === s).sort((a, b) => patch(b) - patch(a))[0]).filter(Boolean);
+}
+
 async function currentReleases(env) {
   const { results } = await env.DB.prepare("SELECT * FROM releases").all();
-  const patch = (r) => Number(r.version.split(".")[2]);
-  return SERIES.map((s) => results.filter((r) => r.series === s).sort((a, b) => patch(b) - patch(a))[0]).filter(Boolean);
+  return newestPerSeries(results);
 }
 
 async function announcements(env) {
@@ -118,14 +122,25 @@ async function tick(env) {
     const results = await Promise.all(queue.splice(0, PARALLEL).map((p) => runProbe(env, net, now, p)));
     statements.push(...results.filter(Boolean));
   }
-  if (statements.length) await env.DB.batch(statements);
+  statements.push(
+    env.DB.prepare("INSERT INTO meta (key, value) VALUES ('finished', ?1) ON CONFLICT (key) DO UPDATE SET value = ?1").bind(
+      new Date().toISOString(),
+    ),
+  );
+  await env.DB.batch(statements);
 }
 
 async function status(env) {
-  const releases = await currentReleases(env);
-  const checks = await currentChecks(env, releases);
-  const lastRun = await env.DB.prepare("SELECT value FROM meta WHERE key = 'last_run'").first("value");
-  const announced = await announcements(env);
+  const [allReleases, checksResult, metaResult] = await env.DB.batch([
+    env.DB.prepare("SELECT * FROM releases"),
+    env.DB.prepare("SELECT * FROM checks"),
+    env.DB.prepare("SELECT key, value FROM meta"),
+  ]);
+  const releases = newestPerSeries(allReleases.results);
+  const checks = checksResult.results;
+  const meta = Object.fromEntries(metaResult.results.map((m) => [m.key, m.value]));
+  const lastRun = meta.last_run;
+  const announced = JSON.parse(meta.announcements ?? "{}");
   const result = (target, release) => {
     if (target.unsourced || (target.series && !target.series.includes(release.series))) return { state: "none" };
     if (target.immediate) return { state: "found", at: release.released_at, exact: true };
@@ -134,7 +149,7 @@ async function status(env) {
     if (!check?.found_at) return { state: "waiting", checkedAt: check?.checked_at };
     return { state: "found", at: check.found_at, exact: Boolean(check.exact), checkedAt: check.checked_at };
   };
-  return {
+  const data = {
     lastRun,
     releases: releases.map((r) => ({
       ...r,
@@ -153,16 +168,16 @@ async function status(env) {
       })),
     })),
   };
+  const freshFor = Math.ceil((new Date(meta.finished).getTime() + INTERVAL + 3000 - Date.now()) / 1000);
+  return { data, maxAge: Math.min(60, Math.max(5, freshFor)) || 5 };
 }
 
-const CACHE = { "cache-control": "public, max-age=15" };
-
 const renderers = {
-  "/api/status": (data) => Response.json(data, { headers: CACHE }),
-  "/": (data) =>
+  "/api/status": (data, headers) => Response.json(data, { headers }),
+  "/": (data, headers) =>
     new Response(
       page.replace("__DATA__", () => JSON.stringify(data).replaceAll("<", "\\u003c")),
-      { headers: { ...CACHE, "content-type": "text/html; charset=utf-8" } },
+      { headers: { ...headers, "content-type": "text/html; charset=utf-8" } },
     ),
 };
 
@@ -172,8 +187,11 @@ export default {
     if (!render || request.method !== "GET") return new Response("Not found", { status: 404 });
     const cached = await caches.default.match(request);
     if (cached) return cached;
-    await ensureSchema(env);
-    const response = render(await status(env));
+    const { data, maxAge } = await status(env).catch(async () => {
+      await ensureSchema(env);
+      return status(env);
+    });
+    const response = render(data, { "cache-control": `public, max-age=${maxAge}` });
     ctx.waitUntil(caches.default.put(request, response.clone()));
     return response;
   },
