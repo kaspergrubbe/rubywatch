@@ -46,7 +46,7 @@ h1 {
 .board { margin-top: 3rem; }
 .row {
   display: grid;
-  grid-template-columns: minmax(13rem, 1.25fr) repeat(3, 6.5rem) minmax(14rem, 1.6fr);
+  grid-template-columns: minmax(13rem, 1.25fr) repeat(3, 7rem) 5.5rem minmax(14rem, 1.6fr);
   column-gap: 1rem;
   align-items: center;
   min-height: 2.75rem;
@@ -83,6 +83,8 @@ h2 { margin: 2.5rem 0 0; padding-bottom: 0.5rem; font-size: 1.25rem; font-weight
 .cell { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cell.waiting { font-weight: 400; color: var(--quiet); }
 .cell.none { color: var(--rule); }
+.unsourced { grid-column: 2 / -1; padding: 0.5rem 0; font-size: 0.9375rem; color: var(--quiet); }
+.checked { font-size: 0.8125rem; color: var(--quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
 .track { position: relative; align-self: stretch; background-image: var(--ticks); }
 .track i {
@@ -114,8 +116,10 @@ footer p { margin: 0 0 0.75rem; }
 
 @media (max-width: 52rem) {
   main { padding: 2rem 1rem 3rem; }
-  .row { grid-template-columns: minmax(0, 1fr) repeat(3, 4.6rem); column-gap: 0.5rem; }
-  .track, .axis { display: none; }
+  .row { grid-template-columns: minmax(0, 1fr) repeat(3, 4.9rem); column-gap: 0.5rem; }
+  .track, .axis, .head .checked { display: none; }
+  .checked { grid-column: 1 / -1; margin-top: -0.25rem; padding-bottom: 0.5rem; }
+  .checked:not(:empty)::before { content: "checked "; }
   .version { font-size: 0.9375rem; }
   .version::before { margin-right: 0.25rem; }
   .version small { display: none; }
@@ -130,7 +134,8 @@ footer p { margin: 0 0 0.75rem; }
   <div class="board" id="board"></div>
   <footer>
     <p class="key"><span class="mark"></span>available <span class="mark hollow" style="margin-left:1rem"></span>still waiting. The chart's time axis is logarithmic, from one minute to two weeks after the source tarball appeared on cache.ruby-lang.org.</p>
-    <p>A time marked ≤ is when this page first saw the release at a source that publishes no timestamp, so the real time may be earlier. Unmarked times come from the source's own timestamp, or from a check that had previously found the release missing.</p>
+    <p>Each source is checked at most once a minute. "Last checked" is the oldest check among a row's releases that are still waiting, or the check that found the last one.</p>
+    <p>Row times are T+, counted from the moment that release's source tarball appeared on cache.ruby-lang.org, the earliest anyone could have shipped it. A time marked ≤ is when this page first saw the release at a source that publishes no timestamp, so the real time may be earlier. Unmarked times come from the source's own timestamp, or from a check that had previously found the release missing.</p>
     <p>Based on <a href="https://paagman.dev/how-fast-can-you-patch-ruby/">How fast can you actually patch Ruby?</a> by Dennis Paagman, which measured the 4.0.9 rollout by hand. <span id="checked"></span></p>
   </footer>
 </main>
@@ -164,6 +169,7 @@ const list = (items) => new Intl.ListFormat("en", { type: "conjunction" }).forma
 const elapsed = (result, release) => new Date(result.at) - new Date(release.released_at);
 
 function score(target, now) {
+  if (target.unsourced) return Infinity;
   return data.releases.reduce((sum, release) => {
     const result = target.results[release.version];
     if (result.state === "none") return sum;
@@ -188,6 +194,7 @@ function render() {
     cell.append(el("small", null, when));
     head.append(cell);
   });
+  head.append(el("div", "checked", "Last checked"));
   const axis = el("div", "axis");
   TICKS.forEach(([m, label]) => {
     const tick = el("span", null, label);
@@ -207,6 +214,11 @@ function render() {
       name.append(link);
       if (target.note) name.append(el("small", null, target.note));
       row.append(name);
+      if (target.unsourced) {
+        row.append(el("div", "unsourced", target.unsourced));
+        rows.push(row);
+        continue;
+      }
       const track = el("div", "track");
       data.releases.forEach((release, i) => {
         const result = target.results[release.version];
@@ -214,7 +226,7 @@ function render() {
         const lane = el("i");
         const dot = el("b", `c${i}`);
         if (result.state === "found") {
-          cell.textContent = (result.exact ? "" : "≤ ") + duration(elapsed(result, release));
+          cell.textContent = (result.exact ? "" : "≤ ") + "T+" + duration(elapsed(result, release));
           cell.title = new Date(result.at).toLocaleString();
           lane.style.width = dot.style.left = `${position(elapsed(result, release))}%`;
         } else if (result.state === "waiting") {
@@ -229,7 +241,14 @@ function render() {
         row.append(cell);
         track.append(lane, dot);
       });
-      row.append(track);
+      const checked = el("div", "checked");
+      const live = Object.values(target.results).filter((r) => r.state !== "none");
+      const waiting = live.filter((r) => r.state === "waiting");
+      const times = (waiting.length ? waiting : live).map((r) => (r.checkedAt ? new Date(r.checkedAt).getTime() : 0));
+      const at = waiting.length ? Math.min(...times) : Math.max(...times);
+      if (at) checked.textContent = new Date(at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+      else if (waiting.length) checked.textContent = "not yet";
+      row.append(checked, track);
       rows.push(row);
     }
   }
@@ -250,7 +269,7 @@ function tick() {
   document.getElementById("headline").textContent =
     `Ruby ${list(data.releases.map((r) => r.version))} came out ${duration(now - first, true)} ago`;
 
-  const targets = data.groups.flatMap((g) => g.targets);
+  const targets = data.groups.flatMap((g) => g.targets).filter((t) => !t.unsourced);
   const results = targets.flatMap((t) => Object.values(t.results)).filter((r) => r.state !== "none");
   const done = results.filter((r) => r.state === "found").length;
   const lede = document.getElementById("lede");

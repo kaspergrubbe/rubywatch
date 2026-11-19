@@ -17,7 +17,7 @@ export class Net {
     this.left -= cost;
     const res = await fetch(url, {
       method,
-      headers: { "user-agent": "liverubyp (ruby release rollout tracker)", ...headers },
+      headers: { "user-agent": "rubywatch.speedshop.co (ruby release rollout tracker)", ...headers },
       signal: AbortSignal.timeout(12000),
     });
     const text = method === "GET" && body ? await res.text() : "";

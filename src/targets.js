@@ -134,6 +134,18 @@ export const groups = [
           return versions.split("\n").includes(version) ? found() : null;
         },
       },
+      {
+        id: "chruby",
+        name: "chruby",
+        url: "https://github.com/postmodern/chruby",
+        unsourced: "No source to check. chruby switches between Rubies that another installer put there.",
+      },
+      {
+        id: "rbenv-windows",
+        name: "rbenv for Windows",
+        url: "https://github.com/RubyMetric/rbenv-for-windows",
+        unsourced: "No source to check yet.",
+      },
     ],
   },
   {
@@ -301,6 +313,12 @@ export const groups = [
         probe: (net, { version }) =>
           fileHas(net, "https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html", after(`Ruby ${version}`)),
       },
+      {
+        id: "lambda",
+        name: "AWS Lambda",
+        url: "https://gallery.ecr.aws/lambda/ruby",
+        unsourced: "No source to check. The image tags don't name the Ruby patch version inside.",
+      },
     ],
   },
   {
@@ -392,6 +410,12 @@ export const groups = [
             "https://pkgs.alpinelinux.org/packages?name=ruby&branch=edge&arch=x86_64",
             new RegExp(`<td class="version">[^<]*<[^>]*>${version.replaceAll(".", "\\.")}-r\\d+<`),
           ),
+      },
+      {
+        id: "debian-ubuntu",
+        name: "Debian, Ubuntu",
+        url: "https://packages.debian.org/search?keywords=ruby",
+        unsourced: "No source to check yet.",
       },
     ],
   },

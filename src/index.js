@@ -49,22 +49,24 @@ async function runProbe(env, net, now, { target, release, check }) {
     return null;
   }
   if (!result) {
-    return env.DB.prepare("INSERT INTO checks (version, target, missing_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING").bind(
-      release.version,
-      target.id,
-      now.toISOString(),
-    );
+    return env.DB.prepare(
+      "INSERT INTO checks (version, target, missing_at, checked_at) VALUES (?1, ?2, ?3, ?3) ON CONFLICT (version, target) DO UPDATE SET checked_at = excluded.checked_at",
+    ).bind(release.version, target.id, now.toISOString());
   }
   const exact = result.at || check?.missing_at ? 1 : 0;
   return env.DB.prepare(
-    "INSERT INTO checks (version, target, found_at, exact) VALUES (?, ?, ?, ?) ON CONFLICT (version, target) DO UPDATE SET found_at = excluded.found_at, exact = excluded.exact",
-  ).bind(release.version, target.id, (result.at ?? now).toISOString(), exact);
+    "INSERT INTO checks (version, target, found_at, exact, checked_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT (version, target) DO UPDATE SET found_at = excluded.found_at, exact = excluded.exact, checked_at = excluded.checked_at",
+  ).bind(release.version, target.id, (result.at ?? now).toISOString(), exact, now.toISOString());
 }
 
 async function tick(env) {
+  const last = await env.DB.prepare("SELECT value FROM meta WHERE key = 'last_run'").first("value");
+  const wait = last ? new Date(last).getTime() + INTERVAL - Date.now() : 0;
+  if (wait > 5000) return;
+  if (wait > 0) await scheduler.wait(wait);
   const now = new Date();
-  const claimed = await env.DB.prepare("UPDATE meta SET value = ? WHERE key = 'last_run' AND value < ?")
-    .bind(now.toISOString(), new Date(now - INTERVAL + 5000).toISOString())
+  const claimed = await env.DB.prepare("UPDATE meta SET value = ? WHERE key = 'last_run' AND value <= ?")
+    .bind(now.toISOString(), new Date(now - INTERVAL).toISOString())
     .run();
   if (!claimed.meta.changes) return;
 
@@ -95,12 +97,12 @@ async function status(env) {
   const checks = await currentChecks(env, releases);
   const lastRun = await env.DB.prepare("SELECT value FROM meta WHERE key = 'last_run'").first("value");
   const result = (target, release) => {
-    if (target.series && !target.series.includes(release.series)) return { state: "none" };
+    if (target.unsourced || (target.series && !target.series.includes(release.series))) return { state: "none" };
     if (target.immediate) return { state: "found", at: release.released_at, exact: true };
     const id = target.sameAs ?? target.id;
     const check = checks.find((c) => c.version === release.version && c.target === id);
-    if (!check?.found_at) return { state: "waiting" };
-    return { state: "found", at: check.found_at, exact: Boolean(check.exact) };
+    if (!check?.found_at) return { state: "waiting", checkedAt: check?.checked_at };
+    return { state: "found", at: check.found_at, exact: Boolean(check.exact), checkedAt: check.checked_at };
   };
   return {
     lastRun,
@@ -112,6 +114,7 @@ async function status(env) {
         name: target.name,
         note: target.note,
         url: target.url,
+        unsourced: target.unsourced,
         results: Object.fromEntries(releases.map((r) => [r.version, result(target, r)])),
       })),
     })),
