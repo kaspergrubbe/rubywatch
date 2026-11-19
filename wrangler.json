@@ -2,10 +2,7 @@
   "name": "rubywatch",
   "main": "src/index.js",
   "compatibility_date": "2026-11-01",
-  "workers_dev": false,
   "assets": { "directory": "public" },
   "triggers": { "crons": ["* * * * *"] },
-  "d1_databases": [
-    { "binding": "DB", "database_name": "rubywatch" }
-  ]
+  "d1_databases": [{ "binding": "DB", "database_name": "rubywatch" }]
 }

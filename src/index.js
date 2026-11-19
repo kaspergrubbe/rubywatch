@@ -6,6 +6,15 @@ const INTERVAL = 60000;
 const BUDGET = 44;
 const PARALLEL = 6;
 
+const SCHEMA = [
+  "CREATE TABLE IF NOT EXISTS releases (version TEXT PRIMARY KEY, series TEXT NOT NULL, released_at TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS checks (version TEXT NOT NULL, target TEXT NOT NULL, missing_at TEXT, found_at TEXT, exact INTEGER NOT NULL DEFAULT 0, checked_at TEXT, PRIMARY KEY (version, target))",
+  "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+  "INSERT INTO meta (key, value) VALUES ('last_run', '') ON CONFLICT DO NOTHING",
+];
+
+const ensureSchema = (env) => env.DB.batch(SCHEMA.map((sql) => env.DB.prepare(sql)));
+
 async function latestReleases(env, net) {
   const index = await net.text("https://cache.ruby-lang.org/pub/ruby/index.txt");
   const statements = [];
@@ -60,6 +69,7 @@ async function runProbe(env, net, now, { target, release, check }) {
 }
 
 async function tick(env) {
+  await ensureSchema(env);
   const last = await env.DB.prepare("SELECT value FROM meta WHERE key = 'last_run'").first("value");
   const wait = last ? new Date(last).getTime() + INTERVAL - Date.now() : 0;
   if (wait > 5000) return;
@@ -123,8 +133,13 @@ async function status(env) {
 export default {
   async fetch(request, env, ctx) {
     if (new URL(request.url).pathname !== "/api/status") return new Response("Not found", { status: 404 });
+    const cached = await caches.default.match(request);
+    if (cached) return cached;
+    await ensureSchema(env);
     ctx.waitUntil(tick(env));
-    return Response.json(await status(env), { headers: { "cache-control": "public, max-age=15" } });
+    const response = Response.json(await status(env), { headers: { "cache-control": "public, max-age=15" } });
+    ctx.waitUntil(caches.default.put(request, response.clone()));
+    return response;
   },
 
   async scheduled(event, env, ctx) {
