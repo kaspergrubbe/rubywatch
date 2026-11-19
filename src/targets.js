@@ -273,6 +273,13 @@ export const groups = [
         sameAs: "jdx",
       },
       {
+        id: "heroku-ci",
+        name: "Heroku CI",
+        note: "Heroku's buildpack",
+        url: "https://devcenter.heroku.com/articles/heroku-ci",
+        sameAs: "heroku",
+      },
+      {
         id: "setup-ruby",
         name: "GitHub Actions setup-ruby",
         note: "Linux and macOS",
@@ -340,21 +347,30 @@ export const groups = [
       {
         id: "hatchbox",
         name: "Hatchbox",
-        note: "uses asdf",
+        note: "compiles via ruby-build",
         url: "https://hatchbox.relationkit.io/articles/26-how-do-i-specify-a-ruby-version-for-my-app",
-        sameAs: "asdf",
+        sameAs: "ruby-build",
       },
       {
         id: "railway",
         name: "Railway",
-        note: "uses mise",
-        url: "https://github.com/jdx/ruby/releases/tag/{v}",
-        sameAs: "jdx",
+        note: "Railpack compiles via mise once mise lists the version",
+        url: "https://railpack.com/languages/ruby#precompiled-ruby",
+        probe: async (net, { version }) => {
+          const listed = new RegExp(`^"${version.replaceAll(".", "\\.")}" =`, "m");
+          let first = null;
+          for (const commit of (await atom(net, "jdx/mise-versions", "commits/main/docs/ruby.toml")).slice(0, 4)) {
+            const file = await net.text(`${raw}/jdx/mise-versions/${commit.tag}/docs/ruby.toml`);
+            if (!listed.test(file ?? "")) break;
+            first = commit;
+          }
+          return first && found(first.at);
+        },
       },
       {
         id: "fly-kamal",
         name: "Fly.io, Kamal",
-        note: "anything on the Docker official image",
+        note: "Rails' default Dockerfile, anything on the Docker official image",
         url: "https://hub.docker.com/_/ruby/tags?name={v}",
         sameAs: "docker-official",
       },
