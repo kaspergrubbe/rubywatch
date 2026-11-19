@@ -147,7 +147,7 @@ async function status(env) {
   const lastRun = meta.last_run;
   const announced = JSON.parse(meta.announcements ?? "{}");
   const result = (target, release) => {
-    if (target.unsourced || (target.series && !target.series.includes(release.series))) return { state: "none" };
+    if (target.series && !target.series.includes(release.series)) return { state: "none" };
     if (target.immediate) return { state: "found", at: release.released_at, exact: true };
     const id = target.sameAs ?? target.id;
     const check = checks.find((c) => c.version === release.version && c.target === id);
@@ -168,7 +168,6 @@ async function status(env) {
         name: target.name,
         note: target.note,
         url: target.url,
-        unsourced: target.unsourced,
         results: Object.fromEntries(releases.map((r) => [r.version, result(target, r)])),
       })),
     })),
