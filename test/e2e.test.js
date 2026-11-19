@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { after, before, test } from "node:test";
 import { convertV4MiniflareOptions, Miniflare, Response } from "miniflare";
 
@@ -17,6 +18,43 @@ const INDEX = [
 const TARBALL = "Wed, 18 Nov 2026 23:34:42 GMT";
 const BUILDER = "Wed, 18 Nov 2026 23:45:42 GMT";
 const WOLFI = "Thu, 19 Nov 2026 02:17:57 GMT";
+const AMD64_BUILT = "2026-11-19T12:54:36.377Z";
+const ARM64_BUILT = "2026-11-19T13:20:00.000Z";
+const LAMBDA_IMAGES = {
+  "4.0": { amd64: "4.0.10", arm64: "4.0.10" },
+  "3.4": { amd64: "3.4.13", arm64: "3.4.12" },
+  "3.3": { amd64: "3.3.15", arm64: "3.3.15", rubyFirst: true },
+};
+const ECR = "https://public.ecr.aws/v2/lambda/ruby";
+const MB = 1024 * 1024;
+
+const gzipped = (text) => gzipSync(Buffer.from(`${"\0".repeat(4096)}${text}${"\0".repeat(4096)}`));
+
+function lambdaRegistry(url) {
+  const [kind, ref] = url.pathname.split("/").slice(-2);
+  if (kind === "manifests" && ref in LAMBDA_IMAGES) {
+    return Response.json({
+      manifests: ["amd64", "arm64"].map((architecture) => ({ digest: `sha256:image-${ref}-${architecture}`, platform: { architecture } })),
+    });
+  }
+  const [, what, series, architecture] = ref.match(/^sha256:(\w+)-([\d.]+)-(\w+)$/) ?? [];
+  const image = LAMBDA_IMAGES[series];
+  if (what === "image") {
+    const ruby = { digest: `sha256:ruby-${series}-${architecture}`, size: 80 * MB };
+    const docs = { digest: `sha256:docs-${series}-${architecture}`, size: 70 * MB };
+    const entrypoint = { digest: `sha256:entrypoint-${series}-${architecture}`, size: 4 * MB };
+    return Response.json({
+      config: { digest: `sha256:config-${series}-${architecture}` },
+      layers: image.rubyFirst ? [ruby, docs, entrypoint] : [docs, ruby, entrypoint],
+    });
+  }
+  if (what === "config") return Response.json({ created: architecture === "arm64" ? ARM64_BUILT : AMD64_BUILT });
+  if (what === "ruby") {
+    return new Response(gzipped(`ruby ${image[architecture]} (2026-11-19 revision a704b7cd95) +PRISM [${architecture}-linux]`), { status: 206 });
+  }
+  if (what === "docs") return new Response(gzipped("ruby 2.5.9 is mentioned in old release notes"), { status: 206 });
+  return new Response(null, { status: 404 });
+}
 
 const requests = [];
 
@@ -26,11 +64,19 @@ function upstream(request) {
   if (url.href === "https://cache.ruby-lang.org/pub/ruby/index.txt") return new Response(INDEX);
   if (url.hostname === "cache.ruby-lang.org") return new Response(null, { headers: { "last-modified": TARBALL } });
   if (url.href === "https://github.com/rbenv/ruby-build/releases.atom") return new Response("<feed></feed>");
+  if (url.href === "https://public.ecr.aws/token/") return Response.json({ token: "token" });
+  if (url.href.startsWith(ECR)) return lambdaRegistry(url);
   if (url.pathname.startsWith("/ruby/ruby-builder/releases/download/")) {
     return new Response(null, { headers: { "last-modified": BUILDER } });
   }
   if (url.href === "https://packages.wolfi.dev/os/x86_64/ruby-4.0-4.0.10-r0.apk") {
     return new Response(null, { headers: { "last-modified": WOLFI } });
+  }
+  if (url.hostname === "hub.docker.com" && url.pathname.startsWith("/v2/repositories/phusion/passenger-ruby")) {
+    return Response.json({ results: [{ name: "latest", digest: "sha256:published" }, { name: "3.2.3", digest: "sha256:published", last_updated: "2026-11-19T03:00:00.000Z" }] });
+  }
+  if (url.href === "https://raw.githubusercontent.com/phusion/passenger-docker/rel-3.2.3/image/ruby-4.0.10.sh") {
+    return new Response(null);
   }
   return new Response(null, { status: 404 });
 }
@@ -100,6 +146,15 @@ test("a round stays inside its request budget", () => {
   assert.ok(requests.length <= 44, `${requests.length} requests`);
 });
 
+test("Passenger reports the Ruby in the published image, at the time that release tag was pushed", async () => {
+  const data = await status();
+  const passenger = row(data, "passenger");
+  assert.equal(passenger.results["4.0.10"].state, "found");
+  assert.equal(passenger.results["4.0.10"].at, "2026-11-19T03:00:00.000Z");
+  assert.equal(passenger.results["3.4.13"].state, "waiting");
+  assert.equal(passenger.results["3.4.13"].checkedAt, data.lastRun);
+});
+
 test("a channel that does not have the release yet is waiting, with the time it was checked", async () => {
   const data = await status();
   for (const result of Object.values(row(data, "ruby-build").results)) {
@@ -108,10 +163,6 @@ test("a channel that does not have the release yet is waiting, with the time it 
   }
 });
 
-test("a channel with no source is listed with the reason", async () => {
-  const data = await status();
-  assert.match(row(data, "lambda").unsourced, /No source/);
-});
 
 test("a second cron round inside the same minute checks nothing", async () => {
   const before = requests.length;
@@ -121,6 +172,24 @@ test("a second cron round inside the same minute checks nothing", async () => {
 
 test("no source is requested more than once in a round", () => {
   assert.equal(new Set(requests).size, requests.length);
+});
+
+test("AWS Lambda reads the Ruby inside both architectures of its base image, once per image", async () => {
+  const db = await mf.getD1Database("DB");
+  for (let round = 0; round < 6; round++) {
+    await db.prepare("UPDATE meta SET value = ? WHERE key = 'last_run'").bind(new Date(Date.now() - 120000).toISOString()).run();
+    await runCron();
+  }
+  const { results } = row(await status(), "lambda");
+  assert.equal(results["4.0.10"].state, "found");
+  assert.equal(results["4.0.10"].at, ARM64_BUILT, "found when the later architecture was built");
+  assert.equal(results["3.4.13"].state, "waiting", "arm64 still has 3.4.12");
+  assert.equal(results["3.3.14"].state, "found", "a newer patch counts, wherever the Ruby layer sits");
+
+  const count = (url) => requests.filter((r) => r === url).length;
+  assert.ok(count(`${ECR}/manifests/3.4`) > 1, "the 3.4 image index is checked again in later rounds");
+  const downloads = requests.filter((r) => r.startsWith(`${ECR}/blobs/sha256:ruby-`) || r.startsWith(`${ECR}/blobs/sha256:docs-`));
+  assert.equal(new Set(downloads).size, downloads.length, "no layer is downloaded twice");
 });
 
 test("the page arrives with its data, the Speedshop link and a cache lifetime", async () => {
