@@ -19,9 +19,6 @@
   --rule: #d1d1d1;
   --lane: #e1e1e1;
   --panel: #f4f5f6;
-  --s0: #0000ee;
-  --s1: #000;
-  --s2: #8a8a8a;
   --sans: "Helvetica Neue", Inter, Roboto, "Arial Nova", "Nimbus Sans", Arial, sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", "URW Palladio L", P052, serif;
 }
@@ -35,9 +32,6 @@
     --rule: #333;
     --lane: #333;
     --panel: #1a1a1a;
-    --s0: #9e9eff;
-    --s1: #fff;
-    --s2: #777;
   }
 }
 * { box-sizing: border-box; }
@@ -96,12 +90,11 @@ h1 {
   height: 0.625rem;
   margin-right: 0.4rem;
   border-radius: 50%;
-  background: var(--c);
+  background: var(--ink);
 }
 .version small { display: block; font-size: 0.8125rem; font-weight: 400; color: var(--quiet); }
-.c0 { --c: var(--s0); }
-.c1 { --c: var(--s1); }
-.c2 { --c: var(--s2); }
+.c1::before, .track b.c1 { border-radius: 0; }
+.c2::before, .track b.c2 { border-radius: 0; transform: rotate(45deg) scale(0.85); }
 
 h2 { margin: 2.5rem 0 0; padding-bottom: 0.5rem; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; border-bottom: 2px solid var(--ink); }
 .name { padding: 0.5rem 0; line-height: 1.3; }
@@ -126,9 +119,9 @@ h2 { margin: 2.5rem 0 0; padding-bottom: 0.5rem; font-size: 1.5rem; font-weight:
   height: 0.625rem;
   margin: -0.3125rem 0 0 -0.3125rem;
   border-radius: 50%;
-  background: var(--c);
+  background: var(--ink);
 }
-.track .waiting { background: var(--paper); border: 2px solid var(--c); }
+.track .waiting { background: var(--paper); border: 2px solid var(--ink); }
 .track :is(i, b):nth-of-type(1) { top: 26%; }
 .track :is(i, b):nth-of-type(2) { top: 50%; }
 .track :is(i, b):nth-of-type(3) { top: 74%; }
