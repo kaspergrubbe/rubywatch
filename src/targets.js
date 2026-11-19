@@ -163,7 +163,7 @@ export const groups = [
           const release = latest?.digest && tags.find((t) => /^\d+\.\d+\.\d+$/.test(t.name) && t.digest === latest.digest);
           if (!release) return null;
           const ruby = await net.head(`${raw}/phusion/passenger-docker/rel-${release.name}/image/ruby-${version}.sh`);
-          return ruby.ok ? found() : null;
+          return ruby.ok ? found(new Date(release.last_updated)) : null;
         },
       },
       {

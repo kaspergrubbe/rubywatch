@@ -29,7 +29,7 @@ function upstream(request) {
     return new Response(null, { headers: { "last-modified": BUILDER } });
   }
   if (url.hostname === "hub.docker.com" && url.pathname.startsWith("/v2/repositories/phusion/passenger-ruby")) {
-    return Response.json({ results: [{ name: "latest", digest: "sha256:published" }, { name: "3.2.3", digest: "sha256:published" }] });
+    return Response.json({ results: [{ name: "latest", digest: "sha256:published" }, { name: "3.2.3", digest: "sha256:published", last_updated: "2026-11-19T03:00:00.000Z" }] });
   }
   if (url.href === "https://raw.githubusercontent.com/phusion/passenger-docker/rel-3.2.3/image/ruby-4.0.10.sh") {
     return new Response(null);
@@ -94,11 +94,11 @@ test("a round stays inside its request budget", () => {
   assert.ok(requests.length <= 44, `${requests.length} requests`);
 });
 
-test("Passenger reports the Ruby in the published image, without claiming an exact release time", async () => {
+test("Passenger reports the Ruby in the published image, at the time that release tag was pushed", async () => {
   const data = await status();
   const passenger = row(data, "passenger");
   assert.equal(passenger.results["4.0.10"].state, "found");
-  assert.equal(passenger.results["4.0.10"].exact, false);
+  assert.equal(passenger.results["4.0.10"].at, "2026-11-19T03:00:00.000Z");
   assert.equal(passenger.results["3.4.13"].state, "waiting");
   assert.equal(passenger.results["3.4.13"].checkedAt, data.lastRun);
 });
