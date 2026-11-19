@@ -289,9 +289,10 @@ export const groups = [
       {
         id: "railway",
         name: "Railway",
-        note: "uses mise",
-        url: "https://github.com/jdx/ruby/releases/tag/{v}",
-        sameAs: "jdx",
+        note: "Railpack compiles via mise once mise lists the version",
+        url: "https://railpack.com/languages/ruby#precompiled-ruby",
+        probe: (net, { version }) =>
+          fileHas(net, "https://mise-versions.jdx.dev/data/ruby.toml", new RegExp(`^"${version.replaceAll(".", "\\.")}" =`, "m")),
       },
       {
         id: "fly-kamal",
