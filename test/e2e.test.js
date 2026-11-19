@@ -17,6 +17,7 @@ const INDEX = [
 ].join("\n");
 const TARBALL = "Wed, 18 Nov 2026 23:34:42 GMT";
 const BUILDER = "Wed, 18 Nov 2026 23:45:42 GMT";
+const WOLFI = "Thu, 19 Nov 2026 02:17:57 GMT";
 const AMD64_BUILT = "2026-11-19T12:54:36.377Z";
 const ARM64_BUILT = "2026-11-19T13:20:00.000Z";
 const LAMBDA_IMAGES = {
@@ -67,6 +68,9 @@ function upstream(request) {
   if (url.href.startsWith(ECR)) return lambdaRegistry(url);
   if (url.pathname.startsWith("/ruby/ruby-builder/releases/download/")) {
     return new Response(null, { headers: { "last-modified": BUILDER } });
+  }
+  if (url.href === "https://packages.wolfi.dev/os/x86_64/ruby-4.0-4.0.10-r0.apk") {
+    return new Response(null, { headers: { "last-modified": WOLFI } });
   }
   if (url.hostname === "hub.docker.com" && url.pathname.startsWith("/v2/repositories/phusion/passenger-ruby")) {
     return Response.json({ results: [{ name: "latest", digest: "sha256:published" }, { name: "3.2.3", digest: "sha256:published", last_updated: "2026-11-19T03:00:00.000Z" }] });
@@ -128,6 +132,14 @@ test("a channel that has the release reports the time its source gives", async (
   assert.equal(result.state, "found");
   assert.equal(result.at, "2026-11-18T23:45:42.000Z");
   assert.equal(result.exact, true);
+});
+
+test("Chainguard reports the time the Wolfi package was uploaded", async () => {
+  const data = await status();
+  const results = row(data, "chainguard").results;
+  assert.equal(results["4.0.10"].state, "found");
+  assert.equal(results["4.0.10"].at, "2026-11-19T02:17:57.000Z");
+  assert.equal(results["3.4.13"].state, "waiting");
 });
 
 test("a round stays inside its request budget", () => {

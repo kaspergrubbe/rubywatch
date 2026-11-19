@@ -243,6 +243,14 @@ export const groups = [
         },
       },
       {
+        id: "chainguard",
+        name: "Chainguard ruby",
+        note: "paid image, checks the Wolfi package it is built from",
+        url: "https://images.chainguard.dev/directory/image/ruby/versions",
+        probe: (net, { version, series }) =>
+          lastModified(net, `https://packages.wolfi.dev/os/x86_64/ruby-${series}-${version}-r0.apk`),
+      },
+      {
         id: "sorah-image",
         name: "sorah/ruby",
         note: "built from sorah-rbpkg",
