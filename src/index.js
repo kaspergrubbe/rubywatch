@@ -82,8 +82,7 @@ async function tick(env) {
       if (!check?.found_at) pending.push({ target, release, check });
     }
   }
-  const start = pending.length ? Math.floor(now / INTERVAL) % pending.length : 0;
-  const queue = [...pending.slice(start), ...pending.slice(0, start)];
+  const queue = pending.sort((a, b) => (a.check?.checked_at ?? "").localeCompare(b.check?.checked_at ?? ""));
   const statements = [];
   while (queue.length) {
     const results = await Promise.all(queue.splice(0, PARALLEL).map((p) => runProbe(env, net, now, p)));
