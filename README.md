@@ -10,6 +10,10 @@ A Cloudflare Worker runs every minute. It finds the newest patch release of each
 
 Each source is checked at most once a minute. The Worker creates its own tables.
 
+## Add a release channel
+
+Pull requests that add a channel are welcome. Add an entry to its group in `src/targets.js`. An entry needs an `id`, a `name`, a `url` to link, and a `probe` that returns `found(date)` when the release is there and `null` when it is not. Use `found()` with no date when the source has no timestamp. Each probe may use only a few requests, because one round has a budget of 44.
+
 ## Run it locally
 
 ```bash
