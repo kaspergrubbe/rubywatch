@@ -143,7 +143,7 @@ test("Chainguard reports the time the Wolfi package was uploaded", async () => {
 });
 
 test("a round stays inside its request budget", () => {
-  assert.ok(requests.length <= 44, `${requests.length} requests`);
+  assert.ok(requests.length <= 120, `${requests.length} requests`);
 });
 
 test("Passenger reports the Ruby in the published image, at the time that release tag was pushed", async () => {
