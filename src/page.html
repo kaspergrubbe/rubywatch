@@ -85,7 +85,6 @@ h2 { margin: 2.5rem 0 0; padding-bottom: 0.5rem; font-size: 1.25rem; font-weight
 .cell { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .cell.waiting { font-weight: 400; color: var(--quiet); }
 .cell.none { color: var(--rule); }
-.unsourced { grid-column: 2 / -1; padding: 0.5rem 0; font-size: 0.9375rem; color: var(--quiet); }
 .checked { font-size: 0.8125rem; color: var(--quiet); white-space: nowrap; }
 
 .track { position: relative; align-self: stretch; background-image: var(--ticks); }
@@ -176,7 +175,6 @@ const list = (items) => new Intl.ListFormat("en", { type: "conjunction" }).forma
 const elapsed = (result, release) => new Date(result.at) - new Date(release.released_at);
 
 function score(target, now) {
-  if (target.unsourced) return Infinity;
   return data.releases.reduce((sum, release) => {
     const result = target.results[release.version];
     if (result.state === "none") return sum;
@@ -223,11 +221,6 @@ function render() {
       name.append(link);
       if (target.note) name.append(el("small", null, target.note));
       row.append(name);
-      if (target.unsourced) {
-        row.append(el("div", "unsourced", target.unsourced));
-        rows.push(row);
-        continue;
-      }
       const track = el("div", "track");
       data.releases.forEach((release, i) => {
         const result = target.results[release.version];
@@ -298,7 +291,7 @@ function tick() {
   document.getElementById("headline").textContent =
     `Ruby ${list(data.releases.map((r) => r.version))} came out ${duration(now - first, true)} ago`;
 
-  const targets = data.groups.flatMap((g) => g.targets).filter((t) => !t.unsourced);
+  const targets = data.groups.flatMap((g) => g.targets);
   const results = targets.flatMap((t) => Object.values(t.results)).filter((r) => r.state !== "none");
   const done = results.filter((r) => r.state === "found").length;
   const lede = document.getElementById("lede");

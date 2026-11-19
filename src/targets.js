@@ -53,6 +53,71 @@ async function fileHas(net, url, pattern) {
 
 const brewFormula = (s) => (s === "4.0" ? "ruby" : `ruby@${s}`);
 
+const lambdaRegistry = "https://public.ecr.aws/v2/lambda/ruby";
+const lambdaArchitectures = ["amd64", "arm64"];
+const imageIndexTypes = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json";
+const imageManifestTypes = "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
+const BANNER_PREFIX_BYTES = 8 * 1024 * 1024;
+const MIN_RUNTIME_LAYER_BYTES = 1024 * 1024;
+const patchOf = (version) => Number(version.split(".")[2]);
+
+async function rubyBanner(gzipPrefix, series) {
+  const banner = new RegExp(`ruby (${series.replace(".", "\\.")}\\.\\d+) \\(\\d{4}-\\d\\d-\\d\\d revision`);
+  const reader = new Blob([gzipPrefix]).stream().pipeThrough(new DecompressionStream("gzip")).getReader();
+  const decoder = new TextDecoder("latin1");
+  let tail = "";
+  try {
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      const text = tail + decoder.decode(chunk.value, { stream: true });
+      const match = text.match(banner);
+      if (match) return match[1];
+      tail = text.slice(-80);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+  return null;
+}
+
+function runtimeLayerCandidates(layers) {
+  const likely = layers.at(-2);
+  const others = layers.filter((l) => l !== likely && l.size >= MIN_RUNTIME_LAYER_BYTES).sort((a, b) => b.size - a.size);
+  return [likely, ...others];
+}
+
+function lambdaImageRuby(net, auth, series, digest) {
+  return net.remember(`lambda ${digest}`, async () => {
+    const image = await net.json(`${lambdaRegistry}/manifests/${digest}`, { headers: { ...auth, accept: imageManifestTypes } });
+    const config = await net.json(`${lambdaRegistry}/blobs/${image.config.digest}`, { headers: auth });
+    for (const layer of runtimeLayerCandidates(image.layers)) {
+      const prefix = await net.bytes(`${lambdaRegistry}/blobs/${layer.digest}`, {
+        headers: { ...auth, range: `bytes=0-${BANNER_PREFIX_BYTES - 1}` },
+      });
+      const ruby = await rubyBanner(prefix, series);
+      if (ruby) return { ruby, created: config.created };
+    }
+    return { ruby: null, created: config.created };
+  });
+}
+
+async function lambdaImages(net, series) {
+  const { token } = await net.json("https://public.ecr.aws/token/");
+  const auth = { authorization: `Bearer ${token}` };
+  const index = await net.json(`${lambdaRegistry}/manifests/${series}`, { headers: { ...auth, accept: imageIndexTypes } });
+  const images = index.manifests.filter((m) => lambdaArchitectures.includes(m.platform.architecture));
+  if (images.length !== lambdaArchitectures.length) throw new Error(`lambda/ruby:${series} is missing an architecture`);
+  return Promise.all(images.map((m) => lambdaImageRuby(net, auth, series, m.digest)));
+}
+
+async function lambdaProbe(net, { version, series }) {
+  const images = await lambdaImages(net, series);
+  if (images.some((image) => !image.ruby)) throw new Error(`no Ruby version found in lambda/ruby:${series}`);
+  if (!images.every((image) => patchOf(image.ruby) >= patchOf(version))) return null;
+  return found(new Date(Math.max(...images.map((image) => Date.parse(image.created)))));
+}
+
 export const groups = [
   {
     name: "Installers and version managers",
@@ -347,8 +412,9 @@ export const groups = [
       {
         id: "lambda",
         name: "AWS Lambda",
+        note: "reads the Ruby inside the amd64 and arm64 base images",
         url: "https://gallery.ecr.aws/lambda/ruby",
-        unsourced: "No source to check. The image tags don't name the Ruby patch version inside.",
+        probe: lambdaProbe,
       },
     ],
   },
