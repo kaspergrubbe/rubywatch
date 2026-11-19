@@ -201,6 +201,13 @@ export const groups = [
     name: "CI",
     targets: [
       {
+        id: "mise-action",
+        name: "GitHub Actions mise-action",
+        note: "Linux and macOS",
+        url: "https://github.com/jdx/ruby/releases/tag/{v}",
+        sameAs: "jdx",
+      },
+      {
         id: "setup-ruby",
         name: "GitHub Actions setup-ruby",
         note: "Linux and macOS",
