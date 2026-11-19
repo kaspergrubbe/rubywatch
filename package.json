@@ -1,0 +1,13 @@
+{
+  "name": "liverubyp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "wrangler d1 migrations apply liverubyp --local",
+    "dev": "wrangler d1 migrations apply liverubyp --local && wrangler dev",
+    "deploy": "wrangler d1 migrations apply liverubyp --remote && wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.164.0"
+  }
+}
