@@ -1,5 +1,6 @@
 import { Net, OutOfBudget } from "./net.js";
 import { groups, targets } from "./targets.js";
+import page from "./page.html";
 
 const SERIES = ["4.0", "3.4", "3.3"];
 const INTERVAL = 60000;
@@ -154,13 +155,25 @@ async function status(env) {
   };
 }
 
+const CACHE = { "cache-control": "public, max-age=15" };
+
+const renderers = {
+  "/api/status": (data) => Response.json(data, { headers: CACHE }),
+  "/": (data) =>
+    new Response(
+      page.replace("__DATA__", () => JSON.stringify(data).replaceAll("<", "\\u003c")),
+      { headers: { ...CACHE, "content-type": "text/html; charset=utf-8" } },
+    ),
+};
+
 export default {
   async fetch(request, env, ctx) {
-    if (new URL(request.url).pathname !== "/api/status") return new Response("Not found", { status: 404 });
+    const render = renderers[new URL(request.url).pathname];
+    if (!render || request.method !== "GET") return new Response("Not found", { status: 404 });
     const cached = await caches.default.match(request);
     if (cached) return cached;
     await ensureSchema(env);
-    const response = Response.json(await status(env), { headers: { "cache-control": "public, max-age=15" } });
+    const response = render(await status(env));
     ctx.waitUntil(caches.default.put(request, response.clone()));
     return response;
   },

@@ -140,11 +140,12 @@ footer p { margin: 0 0 0.75rem; }
     <p>Based on <a href="https://paagman.dev/how-fast-can-you-patch-ruby/">How fast can you actually patch Ruby?</a> by Dennis Paagman, which measured the 4.0.9 rollout by hand. <span id="checked"></span></p>
   </footer>
 </main>
+<script id="data" type="application/json">__DATA__</script>
 <script>
 const MIN = 60000;
 const AXIS = [1, 14 * 24 * 60];
 const TICKS = [[10, "10 m"], [60, "1 h"], [360, "6 h"], [1440, "1 d"], [10080, "7 d"]];
-let data;
+let data = JSON.parse(document.getElementById("data").textContent);
 
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
@@ -316,7 +317,7 @@ async function load() {
   }
 }
 
-load();
+if (data.releases.length) render();
 setInterval(load, MIN);
 setInterval(tick, 1000);
 </script>

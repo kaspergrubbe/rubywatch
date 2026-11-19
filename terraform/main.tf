@@ -23,16 +23,12 @@ resource "cloudflare_worker_version" "rubywatch" {
   main_module        = "index.js"
 
   modules = [
-    for name in fileset("${local.root}/src", "*.js") : {
+    for name in fileset("${local.root}/src", "*") : {
       name         = name
-      content_type = "application/javascript+module"
+      content_type = endswith(name, ".js") ? "application/javascript+module" : "text/plain"
       content_file = "${local.root}/src/${name}"
     }
   ]
-
-  assets = {
-    directory = "${local.root}/public"
-  }
 
   bindings = [
     {

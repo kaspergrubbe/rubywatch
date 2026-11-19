@@ -6,7 +6,7 @@ Based on [How fast can you actually patch Ruby?](https://paagman.dev/how-fast-ca
 
 ## How it works
 
-A Cloudflare Worker runs every minute. It finds the newest patch release of each tracked Ruby series on cache.ruby-lang.org, then checks every target in `src/targets.js` that has not shipped it yet. Results go in a D1 database. The page in `public/` reads them from `/api/status`.
+A Cloudflare Worker runs every minute. It finds the newest patch release of each tracked Ruby series on cache.ruby-lang.org, then checks every target in `src/targets.js` that has not shipped it yet. Results go in a D1 database. The Worker serves the page in `src/page.html` with the current results already in it, and the page refreshes them from `/api/status` every minute.
 
 Each source is checked at most once a minute. The Worker creates its own tables.
 
@@ -25,4 +25,4 @@ curl http://localhost:8787/cdn-cgi/local/scheduled
 
 ## Deploy
 
-`terraform/` is a Terraform module that uploads the Worker, its assets and its cron trigger. [speedshop/infra](https://github.com/speedshop/infra) calls it, pinned to a commit of this repo, and owns the database, DNS record and route. To deploy a change, merge it here, then bump the pinned commit in infra.
+`terraform/` is a Terraform module that uploads the Worker and its cron trigger. [speedshop/infra](https://github.com/speedshop/infra) calls it, pinned to a commit of this repo, and owns the database, DNS record and route. To deploy a change, merge it here, then bump the pinned commit in infra.
