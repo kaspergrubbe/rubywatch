@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { after, before, test } from "node:test";
 import { convertV4MiniflareOptions, Miniflare, Response } from "miniflare";
 
@@ -16,6 +17,29 @@ const INDEX = [
 ].join("\n");
 const TARBALL = "Wed, 18 Nov 2026 23:34:42 GMT";
 const BUILDER = "Wed, 18 Nov 2026 23:45:42 GMT";
+const LAMBDA_BUILT = "2026-11-19T12:54:36.377829917Z";
+const LAMBDA_RUBIES = { "4.0": "4.0.10", "3.4": "3.4.12", "3.3": "3.3.13" };
+const ECR = "https://public.ecr.aws/v2/lambda/ruby";
+
+function lambdaRegistry(url) {
+  const [kind, ref] = url.pathname.split("/").slice(-2);
+  if (kind === "manifests" && ref in LAMBDA_RUBIES) {
+    return Response.json({ manifests: [{ digest: `sha256:image-${ref}`, platform: { architecture: "amd64" } }] });
+  }
+  const series = ref.replace(/^sha256:\w+-/, "");
+  if (ref.startsWith("sha256:image-")) {
+    return Response.json({
+      config: { digest: `sha256:config-${series}` },
+      layers: [{ digest: "sha256:os" }, { digest: `sha256:runtime-${series}` }, { digest: "sha256:entrypoint" }],
+    });
+  }
+  if (ref.startsWith("sha256:config-")) return Response.json({ created: LAMBDA_BUILT });
+  if (ref.startsWith("sha256:runtime-")) {
+    const banner = `ruby ${LAMBDA_RUBIES[series]} (2026-11-19 revision a704b7cd95) +PRISM [x86_64-linux]`;
+    return new Response(gzipSync(Buffer.from(`${"\0".repeat(4096)}${banner}${"\0".repeat(4096)}`)), { status: 206 });
+  }
+  return new Response(null, { status: 404 });
+}
 
 const requests = [];
 
@@ -25,6 +49,8 @@ function upstream(request) {
   if (url.href === "https://cache.ruby-lang.org/pub/ruby/index.txt") return new Response(INDEX);
   if (url.hostname === "cache.ruby-lang.org") return new Response(null, { headers: { "last-modified": TARBALL } });
   if (url.href === "https://github.com/rbenv/ruby-build/releases.atom") return new Response("<feed></feed>");
+  if (url.href === "https://public.ecr.aws/token/") return Response.json({ token: "token" });
+  if (url.href.startsWith(ECR)) return lambdaRegistry(url);
   if (url.pathname.startsWith("/ruby/ruby-builder/releases/download/")) {
     return new Response(null, { headers: { "last-modified": BUILDER } });
   }
@@ -96,9 +122,12 @@ test("a channel that does not have the release yet is waiting, with the time it 
   }
 });
 
-test("a channel with no source is listed with the reason", async () => {
-  const data = await status();
-  assert.match(row(data, "lambda").unsourced, /No source/);
+test("AWS Lambda reads the Ruby inside its base image and times it by the image build", async () => {
+  const { results } = row(await status(), "lambda");
+  assert.equal(results["4.0.10"].state, "found");
+  assert.equal(results["4.0.10"].at, "2026-11-19T12:54:36.377Z");
+  assert.equal(results["3.4.13"].state, "waiting");
+  assert.equal(results["3.3.14"].state, "waiting");
 });
 
 test("a second cron round inside the same minute checks nothing", async () => {
@@ -109,6 +138,18 @@ test("a second cron round inside the same minute checks nothing", async () => {
 
 test("no source is requested more than once in a round", () => {
   assert.equal(new Set(requests).size, requests.length);
+});
+
+test("later rounds read an already seen Lambda image without downloading it again", async () => {
+  const db = await mf.getD1Database("DB");
+  for (let round = 0; round < 4; round++) {
+    await db.prepare("UPDATE meta SET value = ? WHERE key = 'last_run'").bind(new Date(Date.now() - 120000).toISOString()).run();
+    await runCron();
+  }
+  const count = (url) => requests.filter((r) => r === url).length;
+  assert.ok(count(`${ECR}/manifests/3.4`) > 1, "the 3.4 image index is checked again in later rounds");
+  for (const series of ["4.0", "3.4", "3.3"]) assert.ok(count(`${ECR}/blobs/sha256:runtime-${series}`) <= 1, series);
+  assert.equal(row(await status(), "lambda").results["3.4.13"].state, "waiting");
 });
 
 test("the page arrives with its data, the Speedshop link and a cache lifetime", async () => {

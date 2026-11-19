@@ -53,6 +53,47 @@ async function fileHas(net, url, pattern) {
 
 const brewFormula = (s) => (s === "4.0" ? "ruby" : `ruby@${s}`);
 
+const lambdaRegistry = "https://public.ecr.aws/v2/lambda/ruby";
+const imageIndexTypes = "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json";
+const imageManifestTypes = "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json";
+const RUNTIME_PREFIX_BYTES = 4 * 1024 * 1024;
+
+async function rubyBanner(gzipPrefix, series) {
+  const banner = new RegExp(`ruby (${series.replace(".", "\\.")}\\.\\d+) \\(\\d{4}-\\d\\d-\\d\\d revision`);
+  const reader = new Blob([gzipPrefix]).stream().pipeThrough(new DecompressionStream("gzip")).getReader();
+  const decoder = new TextDecoder("latin1");
+  let tail = "";
+  try {
+    for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+      const text = tail + decoder.decode(chunk.value, { stream: true });
+      const match = text.match(banner);
+      if (match) return match[1];
+      tail = text.slice(-80);
+    }
+  } catch {
+    return null;
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+  return null;
+}
+
+async function lambdaImage(net, series) {
+  const { token } = await net.json("https://public.ecr.aws/token/");
+  const auth = { authorization: `Bearer ${token}` };
+  const index = await net.json(`${lambdaRegistry}/manifests/${series}`, { headers: { ...auth, accept: imageIndexTypes } });
+  const { digest } = index.manifests.find((m) => m.platform.architecture === "amd64");
+  return net.remember(`lambda ${digest}`, async () => {
+    const image = await net.json(`${lambdaRegistry}/manifests/${digest}`, { headers: { ...auth, accept: imageManifestTypes } });
+    const config = await net.json(`${lambdaRegistry}/blobs/${image.config.digest}`, { headers: auth });
+    const runtime = image.layers.at(-2);
+    const prefix = await net.bytes(`${lambdaRegistry}/blobs/${runtime.digest}`, {
+      headers: { ...auth, range: `bytes=0-${RUNTIME_PREFIX_BYTES - 1}` },
+    });
+    return { ruby: await rubyBanner(prefix, series), created: config.created };
+  });
+}
+
 export const groups = [
   {
     name: "Installers and version managers",
@@ -314,8 +355,12 @@ export const groups = [
       {
         id: "lambda",
         name: "AWS Lambda",
+        note: "reads the Ruby inside the base image",
         url: "https://gallery.ecr.aws/lambda/ruby",
-        unsourced: "No source to check. The image tags don't name the Ruby patch version inside.",
+        probe: async (net, { version, series }) => {
+          const image = await lambdaImage(net, series);
+          return image.ruby === version ? found(new Date(image.created)) : null;
+        },
       },
     ],
   },

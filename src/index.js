@@ -6,6 +6,7 @@ const SERIES = ["4.0", "3.4", "3.3"];
 const INTERVAL = 60000;
 const BUDGET = 44;
 const PARALLEL = 6;
+const REMEMBERED = 50;
 
 const SCHEMA = [
   "CREATE TABLE IF NOT EXISTS releases (version TEXT PRIMARY KEY, series TEXT NOT NULL, released_at TEXT NOT NULL)",
@@ -103,7 +104,8 @@ async function tick(env) {
     .run();
   if (!claimed.meta.changes) return;
 
-  const net = new Net(BUDGET);
+  const remembered = JSON.parse((await env.DB.prepare("SELECT value FROM meta WHERE key = 'remembered'").first("value")) ?? "{}");
+  const net = new Net(BUDGET, remembered);
   await latestReleases(env, net);
   const releases = await currentReleases(env);
   await findAnnouncements(env, net, releases);
@@ -125,6 +127,9 @@ async function tick(env) {
   statements.push(
     env.DB.prepare("INSERT INTO meta (key, value) VALUES ('finished', ?1) ON CONFLICT (key) DO UPDATE SET value = ?1").bind(
       new Date().toISOString(),
+    ),
+    env.DB.prepare("INSERT INTO meta (key, value) VALUES ('remembered', ?1) ON CONFLICT (key) DO UPDATE SET value = ?1").bind(
+      JSON.stringify(net.recent(REMEMBERED)),
     ),
   );
   await env.DB.batch(statements);
