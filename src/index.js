@@ -160,7 +160,6 @@ export default {
     const cached = await caches.default.match(request);
     if (cached) return cached;
     await ensureSchema(env);
-    ctx.waitUntil(tick(env));
     const response = Response.json(await status(env), { headers: { "cache-control": "public, max-age=15" } });
     ctx.waitUntil(caches.default.put(request, response.clone()));
     return response;

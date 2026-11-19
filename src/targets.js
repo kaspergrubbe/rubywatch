@@ -26,11 +26,6 @@ async function lastModified(net, url, cost = 1) {
   return res.ok ? found(res.modified) : null;
 }
 
-async function dockerHub(net, repo, v) {
-  const tag = await net.json(`https://hub.docker.com/v2/repositories/${repo}/tags/${v}`);
-  return tag && found(new Date(tag.tag_last_pushed));
-}
-
 async function registry(net, tokenUrl, base, v) {
   const { token } = await net.json(tokenUrl);
   const res = await net.head(`${base}/manifests/${v}`, {
@@ -41,6 +36,14 @@ async function registry(net, tokenUrl, base, v) {
   });
   return res.ok ? found() : null;
 }
+
+const dockerHub = (net, repo, v) =>
+  registry(
+    net,
+    `https://auth.docker.io/token?service=registry.docker.io&scope=repository:${repo}:pull`,
+    `https://registry-1.docker.io/v2/${repo}`,
+    v,
+  );
 
 async function fileHas(net, url, pattern) {
   const text = await net.text(url);

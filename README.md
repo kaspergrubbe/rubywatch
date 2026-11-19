@@ -17,7 +17,11 @@ npm install
 npm run dev
 ```
 
-Cron does not fire locally. The page triggers a check when it loads.
+Cron does not fire locally. Run one round of checks with:
+
+```bash
+curl http://localhost:8787/cdn-cgi/local/scheduled
+```
 
 ## Deploy
 
