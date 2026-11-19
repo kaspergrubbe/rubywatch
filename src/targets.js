@@ -282,9 +282,9 @@ export const groups = [
       {
         id: "railway",
         name: "Railway",
-        note: "uses mise",
-        url: "https://github.com/jdx/ruby/releases/tag/{v}",
-        sameAs: "jdx",
+        note: "Railpack compiles from source via mise",
+        url: "https://railpack.com/languages/ruby#precompiled-ruby",
+        immediate: true,
       },
       {
         id: "fly-kamal",
