@@ -17,27 +17,41 @@ const INDEX = [
 ].join("\n");
 const TARBALL = "Wed, 18 Nov 2026 23:34:42 GMT";
 const BUILDER = "Wed, 18 Nov 2026 23:45:42 GMT";
-const LAMBDA_BUILT = "2026-11-19T12:54:36.377829917Z";
-const LAMBDA_RUBIES = { "4.0": "4.0.10", "3.4": "3.4.12", "3.3": "3.3.13" };
+const AMD64_BUILT = "2026-11-19T12:54:36.377Z";
+const ARM64_BUILT = "2026-11-19T13:20:00.000Z";
+const LAMBDA_IMAGES = {
+  "4.0": { amd64: "4.0.10", arm64: "4.0.10" },
+  "3.4": { amd64: "3.4.13", arm64: "3.4.12" },
+  "3.3": { amd64: "3.3.15", arm64: "3.3.15", rubyFirst: true },
+};
 const ECR = "https://public.ecr.aws/v2/lambda/ruby";
+const MB = 1024 * 1024;
+
+const gzipped = (text) => gzipSync(Buffer.from(`${"\0".repeat(4096)}${text}${"\0".repeat(4096)}`));
 
 function lambdaRegistry(url) {
   const [kind, ref] = url.pathname.split("/").slice(-2);
-  if (kind === "manifests" && ref in LAMBDA_RUBIES) {
-    return Response.json({ manifests: [{ digest: `sha256:image-${ref}`, platform: { architecture: "amd64" } }] });
-  }
-  const series = ref.replace(/^sha256:\w+-/, "");
-  if (ref.startsWith("sha256:image-")) {
+  if (kind === "manifests" && ref in LAMBDA_IMAGES) {
     return Response.json({
-      config: { digest: `sha256:config-${series}` },
-      layers: [{ digest: "sha256:os" }, { digest: `sha256:runtime-${series}` }, { digest: "sha256:entrypoint" }],
+      manifests: ["amd64", "arm64"].map((architecture) => ({ digest: `sha256:image-${ref}-${architecture}`, platform: { architecture } })),
     });
   }
-  if (ref.startsWith("sha256:config-")) return Response.json({ created: LAMBDA_BUILT });
-  if (ref.startsWith("sha256:runtime-")) {
-    const banner = `ruby ${LAMBDA_RUBIES[series]} (2026-11-19 revision a704b7cd95) +PRISM [x86_64-linux]`;
-    return new Response(gzipSync(Buffer.from(`${"\0".repeat(4096)}${banner}${"\0".repeat(4096)}`)), { status: 206 });
+  const [, what, series, architecture] = ref.match(/^sha256:(\w+)-([\d.]+)-(\w+)$/) ?? [];
+  const image = LAMBDA_IMAGES[series];
+  if (what === "image") {
+    const ruby = { digest: `sha256:ruby-${series}-${architecture}`, size: 80 * MB };
+    const docs = { digest: `sha256:docs-${series}-${architecture}`, size: 70 * MB };
+    const entrypoint = { digest: `sha256:entrypoint-${series}-${architecture}`, size: 4 * MB };
+    return Response.json({
+      config: { digest: `sha256:config-${series}-${architecture}` },
+      layers: image.rubyFirst ? [ruby, docs, entrypoint] : [docs, ruby, entrypoint],
+    });
   }
+  if (what === "config") return Response.json({ created: architecture === "arm64" ? ARM64_BUILT : AMD64_BUILT });
+  if (what === "ruby") {
+    return new Response(gzipped(`ruby ${image[architecture]} (2026-11-19 revision a704b7cd95) +PRISM [${architecture}-linux]`), { status: 206 });
+  }
+  if (what === "docs") return new Response(gzipped("ruby 2.5.9 is mentioned in old release notes"), { status: 206 });
   return new Response(null, { status: 404 });
 }
 
@@ -122,13 +136,6 @@ test("a channel that does not have the release yet is waiting, with the time it 
   }
 });
 
-test("AWS Lambda reads the Ruby inside its base image and times it by the image build", async () => {
-  const { results } = row(await status(), "lambda");
-  assert.equal(results["4.0.10"].state, "found");
-  assert.equal(results["4.0.10"].at, "2026-11-19T12:54:36.377Z");
-  assert.equal(results["3.4.13"].state, "waiting");
-  assert.equal(results["3.3.14"].state, "waiting");
-});
 
 test("a second cron round inside the same minute checks nothing", async () => {
   const before = requests.length;
@@ -140,16 +147,22 @@ test("no source is requested more than once in a round", () => {
   assert.equal(new Set(requests).size, requests.length);
 });
 
-test("later rounds read an already seen Lambda image without downloading it again", async () => {
+test("AWS Lambda reads the Ruby inside both architectures of its base image, once per image", async () => {
   const db = await mf.getD1Database("DB");
-  for (let round = 0; round < 4; round++) {
+  for (let round = 0; round < 6; round++) {
     await db.prepare("UPDATE meta SET value = ? WHERE key = 'last_run'").bind(new Date(Date.now() - 120000).toISOString()).run();
     await runCron();
   }
+  const { results } = row(await status(), "lambda");
+  assert.equal(results["4.0.10"].state, "found");
+  assert.equal(results["4.0.10"].at, ARM64_BUILT, "found when the later architecture was built");
+  assert.equal(results["3.4.13"].state, "waiting", "arm64 still has 3.4.12");
+  assert.equal(results["3.3.14"].state, "found", "a newer patch counts, wherever the Ruby layer sits");
+
   const count = (url) => requests.filter((r) => r === url).length;
   assert.ok(count(`${ECR}/manifests/3.4`) > 1, "the 3.4 image index is checked again in later rounds");
-  for (const series of ["4.0", "3.4", "3.3"]) assert.ok(count(`${ECR}/blobs/sha256:runtime-${series}`) <= 1, series);
-  assert.equal(row(await status(), "lambda").results["3.4.13"].state, "waiting");
+  const downloads = requests.filter((r) => r.startsWith(`${ECR}/blobs/sha256:ruby-`) || r.startsWith(`${ECR}/blobs/sha256:docs-`));
+  assert.equal(new Set(downloads).size, downloads.length, "no layer is downloaded twice");
 });
 
 test("the page arrives with its data, the Speedshop link and a cache lifetime", async () => {
