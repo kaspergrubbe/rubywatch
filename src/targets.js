@@ -208,6 +208,13 @@ export const groups = [
         sameAs: "jdx",
       },
       {
+        id: "heroku-ci",
+        name: "Heroku CI",
+        note: "Heroku's buildpack",
+        url: "https://devcenter.heroku.com/articles/heroku-ci",
+        sameAs: "heroku",
+      },
+      {
         id: "setup-ruby",
         name: "GitHub Actions setup-ruby",
         note: "Linux and macOS",
@@ -275,9 +282,9 @@ export const groups = [
       {
         id: "hatchbox",
         name: "Hatchbox",
-        note: "uses asdf",
+        note: "compiles via ruby-build",
         url: "https://hatchbox.relationkit.io/articles/26-how-do-i-specify-a-ruby-version-for-my-app",
-        sameAs: "asdf",
+        sameAs: "ruby-build",
       },
       {
         id: "railway",
@@ -290,7 +297,7 @@ export const groups = [
       {
         id: "fly-kamal",
         name: "Fly.io, Kamal",
-        note: "anything on the Docker official image",
+        note: "Rails' default Dockerfile, anything on the Docker official image",
         url: "https://hub.docker.com/_/ruby/tags?name={v}",
         sameAs: "docker-official",
       },
