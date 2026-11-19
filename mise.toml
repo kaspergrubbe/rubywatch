@@ -1,0 +1,41 @@
+[tools]
+node = "24.22.3"
+"github:aubepkg/aube" = "2.9.0"
+terraform = "1.14.6"
+gitleaks = "8.30.1"
+jactionlint = "2.5.0"
+
+[env]
+_.file = ".env"
+
+[tasks.test]
+description = "Run the end-to-end tests against a local Cloudflare runtime"
+sources = ["src/**/*", "test/**/*", "wrangler.json", "package.json"]
+run = "aube test"
+
+[tasks.lint]
+description = "Run all lint checks"
+depends = ["lint:js", "lint:terraform", "lint:secrets", "lint:actions"]
+
+[tasks."lint:js"]
+description = "Check JavaScript syntax"
+sources = ["src/**/*.js", "test/**/*.js"]
+run = "for file in src/*.js test/*.js; do node --check \"$file\" || exit 1; done"
+
+[tasks."lint:terraform"]
+description = "Check Terraform formatting"
+sources = ["terraform/*.tf"]
+run = "terraform fmt -check -diff terraform"
+
+[tasks."lint:secrets"]
+description = "Scan working tree for hardcoded secrets"
+run = "gitleaks dir --redact=75 --no-banner --no-color --max-target-megabytes 5 ."
+
+[tasks."lint:actions"]
+description = "Check GitHub Actions workflows"
+sources = [".github/workflows/*.yml"]
+run = "jactionlint --strict-exit"
+
+[tasks.serve]
+description = "Start the local Worker dev server"
+run = "aube run dev"

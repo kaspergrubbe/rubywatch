@@ -17,8 +17,9 @@ Pull requests that add a channel are welcome. Add an entry to its group in `src/
 ## Run it locally
 
 ```bash
-npm install
-npm run dev
+mise install
+aube install
+mise run serve
 ```
 
 Cron does not fire locally. Run one round of checks with:
@@ -26,6 +27,15 @@ Cron does not fire locally. Run one round of checks with:
 ```bash
 curl http://localhost:8787/cdn-cgi/local/scheduled
 ```
+
+## Test
+
+```bash
+mise run test
+mise run lint
+```
+
+The tests in `test/` run the Worker in Miniflare, Cloudflare's local runtime, with a local D1 database. Every outbound request goes to a stub, so the tests need no network.
 
 ## Deploy
 
