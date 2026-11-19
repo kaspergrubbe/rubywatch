@@ -40,6 +40,24 @@ async function currentReleases(env) {
   return SERIES.map((s) => results.filter((r) => r.series === s).sort((a, b) => patch(b) - patch(a))[0]).filter(Boolean);
 }
 
+async function announcements(env) {
+  return JSON.parse((await env.DB.prepare("SELECT value FROM meta WHERE key = 'announcements'").first("value")) ?? "{}");
+}
+
+async function findAnnouncements(env, net, releases) {
+  const known = await announcements(env);
+  if (releases.every((r) => known[r.version])) return;
+  const feed = await net.text("https://www.ruby-lang.org/en/feeds/news.rss");
+  for (const release of releases) {
+    const slug = `ruby-${release.version.replaceAll(".", "-")}-released`;
+    const link = feed?.match(new RegExp(`<link>([^<]*/${slug}/)</link>`))?.[1];
+    if (link) known[release.version] = link;
+  }
+  await env.DB.prepare("INSERT INTO meta (key, value) VALUES ('announcements', ?1) ON CONFLICT (key) DO UPDATE SET value = ?1")
+    .bind(JSON.stringify(known))
+    .run();
+}
+
 async function currentChecks(env, releases) {
   if (!releases.length) return [];
   const marks = releases.map(() => "?").join(",");
@@ -83,6 +101,7 @@ async function tick(env) {
   const net = new Net(BUDGET);
   await latestReleases(env, net);
   const releases = await currentReleases(env);
+  await findAnnouncements(env, net, releases);
   const checks = await currentChecks(env, releases);
   const pending = [];
   for (const release of releases) {
@@ -105,6 +124,7 @@ async function status(env) {
   const releases = await currentReleases(env);
   const checks = await currentChecks(env, releases);
   const lastRun = await env.DB.prepare("SELECT value FROM meta WHERE key = 'last_run'").first("value");
+  const announced = await announcements(env);
   const result = (target, release) => {
     if (target.unsourced || (target.series && !target.series.includes(release.series))) return { state: "none" };
     if (target.immediate) return { state: "found", at: release.released_at, exact: true };
@@ -115,7 +135,11 @@ async function status(env) {
   };
   return {
     lastRun,
-    releases,
+    releases: releases.map((r) => ({
+      ...r,
+      tarball: `https://cache.ruby-lang.org/pub/ruby/${r.series}/`,
+      announcement: announced[r.version],
+    })),
     groups: groups.map((group) => ({
       name: group.name,
       targets: group.targets.map((target) => ({
