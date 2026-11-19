@@ -134,8 +134,15 @@ footer p { margin: 0 0 0.75rem; }
 .key .mark { margin: 0 0.3rem 0 0; background: var(--ink); }
 .key .mark.hollow { background: none; border: 2px solid var(--ink); }
 
+.intro { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; column-gap: 3rem; }
+.intro-text { min-width: 0; }
+.drip { position: relative; min-height: 34rem; }
+.drip canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
 @media (max-width: 52rem) {
   main { padding: 2rem 1rem 3rem; }
+  .intro { display: block; }
+  .drip { display: none; }
   .wordmark svg { height: 1.75rem; }
   .row { grid-template-columns: minmax(0, 1fr) repeat(3, 4.9rem); column-gap: 0.5rem; }
   .track, .axis, .head .checked { display: none; }
@@ -151,10 +158,15 @@ footer p { margin: 0 0 0.75rem; }
 </head>
 <body>
 <main>
+  <div class="intro">
+  <div class="intro-text">
   <a class="wordmark" href="https://www.speedshop.co/"><svg fill="currentColor" role="img" aria-label="Speedshop" viewBox="0 -1 1150 190" xmlns="http://www.w3.org/2000/svg"><path d="m16.64 77.6c.4 28.38 47.62 30.2 48.03 46.22 0 6.9-5.47 10.74-12.16 10.74-3.6 0-6-.4-9.3-1.22 3.7-16.4-9.3-27.76-23.9-27.76-8.9 0-16 3.65-18.4 11.75-5.7 20.87 18 33.24 58.1 33.24 32.7 0 52.7-11.55 57-29.4 8.1-35.05-53.7-36.06-53.9-55.1-.2-6.1 5.1-9.33 11.6-9.33 2 0 4.3.4 6.5 1-4.1 13.2 8.1 22.9 23.3 22.9 13.8 0 21.3-6.88 21.1-16.4-.6-13.58-20.44-23.5-54.5-23.5-35.24 0-53.7 15.2-53.3 36.87z"/><path d="m179.4 133.14c-2.23 0-4.26-.8-5.88-2.43l16-52.8c4.26-6.5 8.72-7.7 10.34-7.7 5.07 0 8.3 2.9.2 31.8-7.9 28-14.8 31.2-20.67 31.2zm-8.1-90.58c-16.22 0-35.27 5.26-36.9 11.75-1.82 6.7 9.53 5.9 6.5 15.4l-29.6 97.1c-3.44 12.2-10.74 9.5-12.36 15.4-1.2 3.5 1.83 6.1 8.92 6.1h46.4c8.52 0 12.16-1.4 13.18-4.8 1.62-5.4-8.72-5-5.07-16l6.5-21.7c7.08 4.1 16 5.9 24.3 5.9 27.97 0 52.7-16.6 61.2-51.3 8.5-34.4-4.05-58.5-30.8-58.5-10.74 0-21.48 5.5-31 17.7-1.22-10.6-9.33-16.9-21.27-16.9zm153.27 15.8c1.83 0 3.04 1.83 3.24 5.68.3 12.16-5.6 27.15-19.4 25.33 4.3-20.88 12.2-31 16.2-31zm-62 33.44c-8.1 39.52 16.8 58.56 49.64 58.56 32.5 0 47.7-20.67 47.5-33.64 0-2.02-.8-2.63-2.2-2.63-4.2 0-16.4 6.4-28.3 6.4-12.5 0-22.3-4.1-22.1-19.1 23.9 3.4 61.8 1.2 67.5-23.7 3.9-17.3-5-36.3-48-36.3-31.4 0-56.9 16-63.8 50.2zm175.6-33.44c1.82 0 3.03 1.83 3.24 5.68.2 12.16-5.6 27.15-19.4 25.33 4.3-20.88 12.2-31 16.2-31zm-62 33.44c-8.1 39.52 16.8 58.56 49.63 58.56 32.43 0 47.63-20.67 47.42-33.64 0-2.02-.8-2.63-2.23-2.63-4.3 0-16.5 6.4-28.4 6.4-12.6 0-22.3-4.1-22.1-19.1 23.9 3.4 61.8 1.2 67.5-23.7 3.8-17.3-5.1-36.3-48.1-36.3-31.4 0-57 16-63.9 50.2zm250.97-66.47c4.26-13.98-.4-25.33-21.48-25.33-16.2 0-35.26 5.27-36.88 11.55-1.62 6.7 9.73 5.88 6.7 15.6l-6.9 22.7c-6.28-5.07-14-8.1-26.14-8.1-33.44 0-55.73 35.66-55.12 72.54.4 21.8 16.82 36 34.85 36 10.34 0 20.06-4.5 27.56-14 3.65 8.3 14.4 14 27.97 14 17.83 0 31.8-13.2 31.6-24.1 0-2.3-.8-4.7-2.22-4.7-1.62 0-2.63 4.2-6.48 4.2-2.23 0-3.45-2-2.44-5.3l28.98-95.3zm-78.62 89.57c-2.03 6.5-4.26 9.12-7.9 9.12-5.07 0-7.3-3.85-7.3-11.15-.4-19.65 11.35-52.08 23.9-52.08 2.85 0 5.08 1 7.1 2.8l-15.8 51.2zm84.46-37.3c.4 28.38 47.62 30.2 48.02 46.22 0 6.9-5.47 10.74-12.16 10.74-3.64 0-6.07-.4-9.32-1.22 3.65-16.4-9.32-27.76-23.9-27.76-8.93 0-16.02 3.65-18.45 11.75-5.67 20.88 18.04 33.24 58.16 33.24 32.63 0 52.7-11.55 56.94-29.4 8.1-35.05-53.7-36.06-53.9-55.1-.2-6.1 5.07-9.33 11.55-9.33 2.03 0 4.26.4 6.48 1-4.05 13.2 8.1 22.9 23.3 22.9 13.8 0 21.3-6.88 21.08-16.4-.6-13.58-20.46-23.5-54.5-23.5-35.27 0-53.7 15.2-53.3 36.87zm132.72-66.05c-1.64 6.7 9.7 5.67 6.67 15.6l-30.8 101.13c-3.65 12.15-10.94 9.52-12.77 15.2-1 3.64 2.03 6.28 9.33 6.28h46.2c8.7 0 12.16-1.63 13.37-5.07 1.42-5.3-8.9-4.7-5.47-16.1l12.77-41.09v.4c3.65-11.52 9.93-15 14.18-15 4.06 0 7.5 3.28 4.87 9.96l-11.15 29.17c-2.43 6.3-3.64 12.16-3.64 16.82.2 13.77 11.55 22.7 29.38 22.7 22.9 0 34.65-12.98 34.45-24.13 0-2.22-.9-4.45-2.3-4.45s-2.7 4.3-6.5 4.3c-2.2 0-3.5-2.2-2.2-5.45l12.4-39.94c6.9-22.3-4.9-39.3-25.6-39.3-12.4 0-24.5 3.65-35.9 18.45l11-35.63c4.2-14-.4-25.35-21.5-25.35-16.2 0-35.3 5.27-36.9 11.55zm115.54 84.9c-6.9 29.8 6.7 55.13 53.5 55.13 36.07 0 65.46-21.48 73.36-55.12 6.7-28.17-5.88-53.9-52.08-53.9-36.07 0-67.08 21.88-74.78 53.9zm72.96.2c-9.93 32.23-15.4 37.7-20.27 37.3-5.06 0-9.12-3.65 1.22-37.1 9.52-30.6 15.4-36.26 20.26-36.26 5.1 0 9 4.2-1.2 36z"/><path d="m1064.43 133.14c-2.23 0-4.25-.8-5.87-2.43l16-52.8c4.26-6.5 8.72-7.7 10.34-7.7 5.07 0 8.3 2.9.2 31.8-7.9 28-14.8 31.2-20.67 31.2zm-8.1-90.58c-16.2 0-35.26 5.26-36.88 11.75-1.83 6.7 9.52 5.9 6.48 15.4l-29.6 97.1c-3.43 12.2-10.73 9.5-12.35 15.4-1.2 3.5 1.83 6.1 8.92 6.1h46.4c8.52 0 12.16-1.4 13.18-4.8 1.62-5.4-8.72-5-5.07-16l6.5-21.7c7.1 4.1 16 5.9 24.3 5.9 28 0 52.7-16.6 61.2-51.3 8.6-34.4-4-58.5-30.8-58.5-10.7 0-21.4 5.5-31 17.7-1.2-10.5-9.3-16.8-21.2-16.8z"/></svg></a>
   <h1 id="headline">Checking where the latest Ruby releases have landed</h1>
   <p class="lede" id="lede"></p>
   <p class="clock" id="clock"></p>
+  </div>
+  <div class="drip" aria-hidden="true"><canvas id="drip"></canvas></div>
+  </div>
   <div class="board" id="board"></div>
   <footer>
     <p class="key"><span class="mark"></span>available <span class="mark hollow" style="margin-left:1rem"></span>still waiting. The chart's time axis is logarithmic, from one minute to two weeks after the source tarball appeared on cache.ruby-lang.org.</p>
@@ -201,6 +213,179 @@ function score(target, now) {
     return sum + (result.state === "found" ? elapsed(result, release) : now - new Date(release.released_at) + 1e12);
   }, 0);
 }
+
+const drip = (() => {
+  const canvas = document.getElementById("drip");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const TOP = 92;
+  const GEM = [[-0.5, -0.62], [0.5, -0.62], [1, -0.18], [0, 1.05], [-1, -0.18]];
+  const FACETS = [
+    [[-0.5, -0.62], [0.5, -0.62], [0.2, -0.18], [-0.2, -0.18]],
+    [[-0.5, -0.62], [-0.2, -0.18], [-0.62, -0.18]], [[-0.5, -0.62], [-0.62, -0.18], [-1, -0.18]],
+    [[0.5, -0.62], [0.62, -0.18], [0.2, -0.18]], [[0.5, -0.62], [1, -0.18], [0.62, -0.18]],
+    [[-1, -0.18], [-0.62, -0.18], [0, 1.05]], [[-0.62, -0.18], [-0.2, -0.18], [0, 1.05]],
+    [[-0.2, -0.18], [0.2, -0.18], [0, 1.05]], [[0.2, -0.18], [0.62, -0.18], [0, 1.05]], [[0.62, -0.18], [1, -0.18], [0, 1.05]],
+  ];
+  const FACET_ANGLES = [0, 62, 118, -62, -118, 35, 75, 90, 105, 145].map((d) => (d * Math.PI) / 180);
+  let ctx, w, h, left, right, bottom, gap;
+  let lanes = [];
+  let hover = null;
+  let t = 0;
+  let loadedAt = Date.now();
+  let running = false;
+  const colors = () => {
+    const css = getComputedStyle(document.documentElement);
+    return { ink: getComputedStyle(document.body).color, paper: getComputedStyle(document.body).backgroundColor, quiet: css.getPropertyValue("--quiet").trim(), rule: css.getPropertyValue("--rule").trim() };
+  };
+  const font = () => getComputedStyle(document.body).fontFamily;
+  const yOf = (ms) => TOP + (bottom - TOP) * (position(ms) / 100);
+  const path = (pts) => { ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath(); };
+  const at = (cx, cy, s) => ([x, y]) => [cx + x * s, cy + y * s];
+  function size() {
+    const dpr = devicePixelRatio || 1;
+    const box = canvas.getBoundingClientRect();
+    if (!box.width) return false;
+    canvas.width = Math.round(box.width * dpr);
+    canvas.height = Math.round(box.height * dpr);
+    ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    w = box.width; h = box.height; left = 34; right = w - 4; bottom = h - 10;
+    return true;
+  }
+  function update() {
+    const byTarget = new Map();
+    for (const group of data.groups) for (const target of group.targets) {
+      for (const release of data.releases) {
+        const result = target.results[release.version];
+        if (!result || result.state === "none") continue;
+        const ms = result.state === "found" ? new Date(result.at) - new Date(release.released_at) : Date.now() - new Date(release.released_at);
+        const lane = byTarget.get(target.id) ?? { name: target.name, ms: 0, waiting: false };
+        lane.ms = Math.max(lane.ms, ms);
+        lane.waiting ||= result.state === "waiting";
+        byTarget.set(target.id, lane);
+      }
+    }
+    const previous = new Map(lanes.map((l) => [l.name, l]));
+    lanes = [...byTarget.values()].sort((a, b) => (a.waiting === b.waiting ? a.ms - b.ms : a.waiting ? 1 : -1));
+    loadedAt = Date.now();
+    if (!ctx && !size()) return;
+    gap = (right - left) / lanes.length;
+    lanes.forEach((l, i) => {
+      l.x = left + gap * (i + 0.5);
+      l.i = i;
+      const before = previous.get(l.name);
+      l.delay = before ? before.delay : i * 0.03;
+    });
+    if (hover) hover = lanes.find((l) => l.name === hover.name) ?? null;
+    if (!running) start();
+  }
+  const grow = (l) => (reduce ? 1 : 1 - Math.pow(1 - Math.min(1, Math.max(0, (t - l.delay) / 2.2)), 3));
+  const laneEnd = (l) => yOf(l.waiting ? l.ms + (Date.now() - loadedAt) : l.ms);
+  const laneY = (l) => TOP + (laneEnd(l) - TOP) * grow(l);
+  function bigGem(cx, cy, s, c) {
+    const P = at(cx, cy, s);
+    FACETS.forEach((facet, i) => {
+      ctx.save();
+      path(facet.map(P));
+      ctx.fillStyle = c.paper; ctx.fill(); ctx.clip();
+      ctx.translate(cx, cy); ctx.rotate(FACET_ANGLES[i]); ctx.fillStyle = c.ink;
+      const offset = reduce ? 0 : (t * (i % 2 ? 4 : -4)) % 8;
+      for (let x = -s * 2 + offset; x < s * 2; x += 8) ctx.fillRect(x, -s * 2, 4, s * 4);
+      ctx.restore();
+      path(facet.map(P)); ctx.strokeStyle = c.paper; ctx.lineWidth = 2.5; ctx.stroke();
+    });
+    path(GEM.map(P)); ctx.strokeStyle = c.ink; ctx.lineWidth = 2; ctx.stroke();
+  }
+  function label(l, y, c) {
+    const name = l.name;
+    const detail = l.waiting ? `still waiting, T+${duration(l.ms + Date.now() - loadedAt)}` : `shipped at T+${duration(l.ms)}`;
+    ctx.font = "600 13px " + font();
+    const nameWidth = ctx.measureText(name).width;
+    ctx.font = "12px " + font();
+    const bw = Math.max(nameWidth, ctx.measureText(detail).width) + 16, bh = 40;
+    let bx = l.x + 14;
+    if (bx + bw > w) bx = l.x - 14 - bw;
+    const by = Math.max(2, Math.min(y - bh / 2, h - bh - 2));
+    ctx.fillStyle = c.paper; ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = c.ink; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 0.75, by + 0.75, bw - 1.5, bh - 1.5);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = c.ink; ctx.font = "600 13px " + font(); ctx.fillText(name, bx + 8, by + 17);
+    ctx.fillStyle = c.quiet; ctx.font = "12px " + font(); ctx.fillText(detail, bx + 8, by + 32);
+  }
+  function draw() {
+    const c = colors();
+    ctx.clearRect(0, 0, w, h);
+    ctx.font = "12px " + font(); ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    for (const [m, text] of TICKS) {
+      const y = yOf(m * MIN);
+      ctx.strokeStyle = c.rule; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+      ctx.fillStyle = c.quiet; ctx.fillText(text, left - 6, y);
+    }
+    const cx = (left + right) / 2, gy = 36, gs = 44;
+    for (const l of lanes) {
+      ctx.globalAlpha = hover ? (l === hover ? 1 : 0.1) : 0.35;
+      ctx.strokeStyle = c.ink; ctx.lineWidth = l === hover ? 1.5 : 1;
+      ctx.beginPath(); ctx.moveTo(cx, gy + gs * 1.05); ctx.lineTo(l.x, TOP); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = c.ink; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(left, TOP); ctx.lineTo(right, TOP); ctx.stroke();
+    bigGem(cx, gy, gs, c);
+    for (const l of lanes) {
+      const y = laneY(l);
+      const focused = l === hover;
+      ctx.globalAlpha = hover && !focused ? 0.25 : 1;
+      ctx.strokeStyle = c.ink;
+      ctx.lineWidth = Math.max(1.5, gap * (focused ? 0.5 : 0.3));
+      ctx.setLineDash(l.waiting ? [3, 3] : []);
+      ctx.beginPath(); ctx.moveTo(l.x, TOP); ctx.lineTo(l.x, y - gap * 0.4); ctx.stroke();
+      ctx.setLineDash([]);
+      const s = Math.max(3, gap * 0.48) * (focused ? 1.8 : 1);
+      if (l.waiting) {
+        const swell = reduce ? 1 : 0.75 + 0.25 * Math.sin(t * 3 + l.i);
+        ctx.beginPath(); ctx.ellipse(l.x, y, s * 0.55 * swell, s * 0.8 * swell, 0, 0, Math.PI * 2);
+        ctx.fillStyle = c.paper; ctx.fill(); ctx.lineWidth = 1.5; ctx.stroke();
+      } else {
+        path(GEM.map(at(l.x, y, s))); ctx.fillStyle = c.ink; ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    if (hover) {
+      const y = laneY(hover);
+      ctx.strokeStyle = c.ink; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(hover.x, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(left - 4, y); ctx.lineTo(left + 2, y); ctx.lineWidth = 2; ctx.stroke();
+      label(hover, y, c);
+    }
+  }
+  function start() {
+    running = true;
+    let last = performance.now();
+    const frame = (now) => {
+      if (document.hidden || !canvas.offsetParent) { running = false; return; }
+      t += Math.min(0.05, (now - last) / 1000);
+      last = now;
+      draw();
+      if (reduce) { running = false; return; }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+  canvas.addEventListener("pointermove", (e) => {
+    if (!lanes.length) return;
+    const x = e.clientX - canvas.getBoundingClientRect().left;
+    const nearest = lanes.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a));
+    hover = Math.abs(nearest.x - x) < gap * 1.5 ? nearest : null;
+    if (reduce) draw();
+  });
+  canvas.addEventListener("pointerleave", () => { hover = null; if (reduce) draw(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && !running && ctx) start(); });
+  addEventListener("resize", () => { if (size()) update(); });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => ctx && draw());
+  return { update };
+})();
 
 function render() {
   const now = Date.now();
@@ -296,6 +481,7 @@ function render() {
     `, ${zone}. Nobody downstream can package a release before that file exists, so it is the earliest any of them could have shipped. The tag and the announcement can come earlier or later.`,
   );
   tick();
+  drip.update();
 }
 
 function tick() {
