@@ -210,7 +210,8 @@ function render() {
       const row = el("div", "row");
       const name = el("div", "name");
       const link = el("a", null, target.name);
-      link.href = target.url.replace("{v}", data.releases[0].version);
+      const linked = data.releases.find((r) => target.results[r.version].state !== "none") ?? data.releases[0];
+      link.href = target.url.replace("{v}", linked.version).replace("{s}", linked.series);
       name.append(link);
       if (target.note) name.append(el("small", null, target.note));
       row.append(name);

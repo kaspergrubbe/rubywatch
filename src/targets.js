@@ -134,18 +134,6 @@ export const groups = [
           return versions.split("\n").includes(version) ? found() : null;
         },
       },
-      {
-        id: "chruby",
-        name: "chruby",
-        url: "https://github.com/postmodern/chruby",
-        unsourced: "No source to check. chruby switches between Rubies that another installer put there.",
-      },
-      {
-        id: "rbenv-windows",
-        name: "rbenv for Windows",
-        url: "https://github.com/RubyMetric/rbenv-for-windows",
-        unsourced: "No source to check yet.",
-      },
     ],
   },
   {
@@ -412,10 +400,29 @@ export const groups = [
           ),
       },
       {
-        id: "debian-ubuntu",
-        name: "Debian, Ubuntu",
-        url: "https://packages.debian.org/search?keywords=ruby",
-        unsourced: "No source to check yet.",
+        id: "debian",
+        name: "Debian",
+        note: "any suite, including experimental and proposed updates",
+        url: "https://tracker.debian.org/pkg/ruby{s}",
+        series: ["3.4", "3.3"],
+        probe: async (net, { version, series }) => {
+          const src = await net.json(`https://sources.debian.org/api/src/ruby${series}/`);
+          return src.versions.some((v) => v.version.startsWith(`${version}-`)) ? found() : null;
+        },
+      },
+      {
+        id: "ubuntu",
+        name: "Ubuntu",
+        note: "any series",
+        url: "https://launchpad.net/ubuntu/+source/ruby{s}",
+        series: ["3.3"],
+        probe: async (net, { version, series }) => {
+          const { entries } = await net.json(
+            `https://api.launchpad.net/1.0/ubuntu/+archive/primary?ws.op=getPublishedSources&source_name=ruby${series}&exact_match=true&status=Published&ws.size=50`,
+          );
+          const published = entries.filter((e) => e.source_package_version.startsWith(`${version}-`));
+          return earliest(published.map((e) => ({ at: new Date(e.date_published) })));
+        },
       },
     ],
   },
