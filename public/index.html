@@ -120,6 +120,7 @@ footer p { margin: 0 0 0.75rem; }
   .track, .axis, .head .checked { display: none; }
   .checked { grid-column: 1 / -1; margin-top: -0.25rem; padding-bottom: 0.5rem; }
   .checked:not(:empty)::before { content: "checked "; }
+  .checked:not(:empty)::after { content: " " attr(data-zone); }
   .version { font-size: 0.9375rem; }
   .version::before { margin-right: 0.25rem; }
   .version small { display: none; }
@@ -134,7 +135,7 @@ footer p { margin: 0 0 0.75rem; }
   <div class="board" id="board"></div>
   <footer>
     <p class="key"><span class="mark"></span>available <span class="mark hollow" style="margin-left:1rem"></span>still waiting. The chart's time axis is logarithmic, from one minute to two weeks after the source tarball appeared on cache.ruby-lang.org.</p>
-    <p>Each source is checked at most once a minute. "Last checked" is the oldest check among a row's releases that are still waiting, or the check that found the last one.</p>
+    <p>Each source is checked at most once a minute. Clock times and dates on this page are in your browser's time zone. "Last checked" is the oldest check among a row's releases that are still waiting, or the check that found the last one.</p>
     <p>Row times are T+, counted from the moment that release's source tarball appeared on cache.ruby-lang.org, the earliest anyone could have shipped it. A time marked ≤ is when this page first saw the release at a source that publishes no timestamp, so the real time may be earlier. Unmarked times come from the source's own timestamp, or from a check that had previously found the release missing.</p>
     <p>Based on <a href="https://paagman.dev/how-fast-can-you-patch-ruby/">How fast can you actually patch Ruby?</a> by Dennis Paagman, which measured the 4.0.9 rollout by hand. <span id="checked"></span></p>
   </footer>
@@ -194,7 +195,8 @@ function render() {
     cell.append(el("small", null, when));
     head.append(cell);
   });
-  head.append(el("div", "checked", "Last checked"));
+  const zone = new Intl.DateTimeFormat([], { timeZoneName: "short" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName").value;
+  head.append(el("div", "checked", `Last checked (${zone})`));
   const axis = el("div", "axis");
   TICKS.forEach(([m, label]) => {
     const tick = el("span", null, label);
@@ -243,6 +245,7 @@ function render() {
         track.append(lane, dot);
       });
       const checked = el("div", "checked");
+      checked.dataset.zone = zone;
       const live = Object.values(target.results).filter((r) => r.state !== "none");
       const waiting = live.filter((r) => r.state === "waiting");
       const times = (waiting.length ? waiting : live).map((r) => (r.checkedAt ? new Date(r.checkedAt).getTime() : 0));
