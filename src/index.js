@@ -4,7 +4,7 @@ import page from "./page.html";
 
 const SERIES = ["4.0", "3.4", "3.3"];
 const INTERVAL = 60000;
-const BUDGET = 44;
+const BUDGET = 120;
 const PARALLEL = 6;
 const REMEMBERED = 50;
 
