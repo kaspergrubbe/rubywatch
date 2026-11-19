@@ -16,6 +16,7 @@ const INDEX = [
 ].join("\n");
 const TARBALL = "Wed, 18 Nov 2026 23:34:42 GMT";
 const BUILDER = "Wed, 18 Nov 2026 23:45:42 GMT";
+const WOLFI = "Thu, 19 Nov 2026 02:17:57 GMT";
 
 const requests = [];
 
@@ -27,6 +28,9 @@ function upstream(request) {
   if (url.href === "https://github.com/rbenv/ruby-build/releases.atom") return new Response("<feed></feed>");
   if (url.pathname.startsWith("/ruby/ruby-builder/releases/download/")) {
     return new Response(null, { headers: { "last-modified": BUILDER } });
+  }
+  if (url.href === "https://packages.wolfi.dev/os/x86_64/ruby-4.0-4.0.10-r0.apk") {
+    return new Response(null, { headers: { "last-modified": WOLFI } });
   }
   return new Response(null, { status: 404 });
 }
@@ -82,6 +86,14 @@ test("a channel that has the release reports the time its source gives", async (
   assert.equal(result.state, "found");
   assert.equal(result.at, "2026-11-18T23:45:42.000Z");
   assert.equal(result.exact, true);
+});
+
+test("Chainguard reports the time the Wolfi package was uploaded", async () => {
+  const data = await status();
+  const results = row(data, "chainguard").results;
+  assert.equal(results["4.0.10"].state, "found");
+  assert.equal(results["4.0.10"].at, "2026-11-19T02:17:57.000Z");
+  assert.equal(results["3.4.13"].state, "waiting");
 });
 
 test("a round stays inside its request budget", () => {
