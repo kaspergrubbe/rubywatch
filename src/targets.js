@@ -220,15 +220,10 @@ export const groups = [
         note: "phusion/passenger-ruby images, latest tag",
         url: "https://github.com/phusion/passenger-docker",
         probe: async (net, { version, series }) => {
-          const repo = `phusion/passenger-ruby${series.replace(".", "")}`;
-          const tags = (await net.json(`https://hub.docker.com/v2/repositories/${repo}/tags?page_size=100`))?.results;
-          if (!tags) throw new Error(`no tags for ${repo}`);
-          const latest = tags.find((t) => t.name === "latest");
-          // Match the published image to its release, rather than checking unreleased source on master.
-          const release = latest?.digest && tags.find((t) => /^\d+\.\d+\.\d+$/.test(t.name) && t.digest === latest.digest);
-          if (!release) return null;
-          const ruby = await net.head(`${raw}/phusion/passenger-docker/rel-${release.name}/image/ruby-${version}.sh`);
-          return ruby.ok ? found(new Date(release.last_updated)) : null;
+          const [release] = await atom(net, "phusion/passenger-docker");
+          const ruby = await net.head(`${raw}/phusion/passenger-docker/${release.tag}/image/ruby-${version}.sh`);
+          if (!ruby.ok) return null;
+          return dockerHub(net, `phusion/passenger-ruby${series.replace(".", "")}`, release.tag.replace("rel-", ""));
         },
       },
       {

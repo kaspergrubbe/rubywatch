@@ -72,12 +72,15 @@ function upstream(request) {
   if (url.href === "https://packages.wolfi.dev/os/x86_64/ruby-4.0-4.0.10-r0.apk") {
     return new Response(null, { headers: { "last-modified": WOLFI } });
   }
-  if (url.hostname === "hub.docker.com" && url.pathname.startsWith("/v2/repositories/phusion/passenger-ruby")) {
-    return Response.json({ results: [{ name: "latest", digest: "sha256:published" }, { name: "3.2.3", digest: "sha256:published", last_updated: "2026-11-19T03:00:00.000Z" }] });
+  if (url.href === "https://github.com/phusion/passenger-docker/releases.atom") {
+    return new Response(
+      "<feed><entry><id>tag:github.com,2008:Repository/14279525/rel-3.2.4</id><updated>2026-11-19T02:00:00Z</updated><title>rel-3.2.4</title></entry></feed>",
+    );
   }
-  if (url.href === "https://raw.githubusercontent.com/phusion/passenger-docker/rel-3.2.3/image/ruby-4.0.10.sh") {
-    return new Response(null);
-  }
+  if (url.href === "https://raw.githubusercontent.com/phusion/passenger-docker/rel-3.2.4/image/ruby-4.0.10.sh") return new Response(null);
+  if (url.href === "https://raw.githubusercontent.com/phusion/passenger-docker/rel-3.2.4/image/ruby-3.4.13.sh") return new Response(null);
+  if (url.hostname === "auth.docker.io" && url.searchParams.get("scope")?.startsWith("repository:phusion/")) return Response.json({ token: "token" });
+  if (url.href === "https://registry-1.docker.io/v2/phusion/passenger-ruby40/manifests/3.2.4") return new Response(null);
   return new Response(null, { status: 404 });
 }
 
@@ -146,13 +149,14 @@ test("a round stays inside its request budget", () => {
   assert.ok(requests.length <= 120, `${requests.length} requests`);
 });
 
-test("Passenger reports the Ruby in the published image, at the time that release tag was pushed", async () => {
+test("Passenger reports the Ruby once the latest passenger-docker release ships it and its image is pushed", async () => {
   const data = await status();
   const passenger = row(data, "passenger");
   assert.equal(passenger.results["4.0.10"].state, "found");
-  assert.equal(passenger.results["4.0.10"].at, "2026-11-19T03:00:00.000Z");
-  assert.equal(passenger.results["3.4.13"].state, "waiting");
+  assert.equal(passenger.results["4.0.10"].exact, false);
+  assert.equal(passenger.results["3.4.13"].state, "waiting", "released, but the 3.4 image is not pushed yet");
   assert.equal(passenger.results["3.4.13"].checkedAt, data.lastRun);
+  assert.equal(passenger.results["3.3.14"].state, "waiting");
 });
 
 test("a channel that does not have the release yet is waiting, with the time it was checked", async () => {
