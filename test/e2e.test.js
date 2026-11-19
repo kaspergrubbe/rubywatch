@@ -28,6 +28,12 @@ function upstream(request) {
   if (url.pathname.startsWith("/ruby/ruby-builder/releases/download/")) {
     return new Response(null, { headers: { "last-modified": BUILDER } });
   }
+  if (url.hostname === "hub.docker.com" && url.pathname.startsWith("/v2/repositories/phusion/passenger-ruby")) {
+    return Response.json({ results: [{ name: "latest", digest: "sha256:published" }, { name: "3.2.3", digest: "sha256:published" }] });
+  }
+  if (url.href === "https://raw.githubusercontent.com/phusion/passenger-docker/rel-3.2.3/image/ruby-4.0.10.sh") {
+    return new Response(null);
+  }
   return new Response(null, { status: 404 });
 }
 
@@ -86,6 +92,15 @@ test("a channel that has the release reports the time its source gives", async (
 
 test("a round stays inside its request budget", () => {
   assert.ok(requests.length <= 44, `${requests.length} requests`);
+});
+
+test("Passenger reports the Ruby in the published image, without claiming an exact release time", async () => {
+  const data = await status();
+  const passenger = row(data, "passenger");
+  assert.equal(passenger.results["4.0.10"].state, "found");
+  assert.equal(passenger.results["4.0.10"].exact, false);
+  assert.equal(passenger.results["3.4.13"].state, "waiting");
+  assert.equal(passenger.results["3.4.13"].checkedAt, data.lastRun);
 });
 
 test("a channel that does not have the release yet is waiting, with the time it was checked", async () => {
