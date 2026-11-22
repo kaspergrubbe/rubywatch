@@ -124,8 +124,8 @@ export const groups = [
     targets: [
       {
         id: "ruby-build",
-        name: "ruby-build",
-        note: "rbenv, and mise when compiling",
+        name: "rbenv",
+        note: "needs a ruby-build release that defines the version",
         url: "https://github.com/rbenv/ruby-build/releases",
         probe: async (net, { version }) => {
           const release = await rubyBuildRelease(net, version);
@@ -133,15 +133,9 @@ export const groups = [
         },
       },
       {
-        id: "ruby-builder",
-        name: "ruby/ruby-builder binaries",
-        url: "https://github.com/ruby/ruby-builder/releases/tag/ruby-{v}",
-        probe: (net, { version: v }) =>
-          lastModified(net, `https://github.com/ruby/ruby-builder/releases/download/ruby-${v}/ruby-${v}-ubuntu-24.04-x64.tar.gz`, 2),
-      },
-      {
         id: "brew-ruby-build",
-        name: "Homebrew ruby-build",
+        name: "rbenv from Homebrew",
+        note: "needs Homebrew's ruby-build formula to catch up",
         url: "https://formulae.brew.sh/formula/ruby-build",
         probe: async (net, { version }) => {
           const release = await rubyBuildRelease(net, version);
@@ -151,8 +145,16 @@ export const groups = [
         },
       },
       {
+        id: "mise",
+        name: "mise",
+        note: "downloads a jdx/ruby binary, or compiles with ruby-build when there is none",
+        url: "https://mise.jdx.dev/lang/ruby.html",
+        sameAs: ["jdx", "ruby-build"],
+      },
+      {
         id: "asdf",
         name: "asdf",
+        note: "needs asdf-ruby to pin a ruby-build that defines the version",
         url: "https://github.com/asdf-vm/asdf-ruby/commits/master",
         probe: async (net, { version }) => {
           const release = await rubyBuildRelease(net, version);
@@ -162,11 +164,53 @@ export const groups = [
         },
       },
       {
+        id: "rvm",
+        name: "RVM",
+        note: "compiles any version from the tarball",
+        url: "https://rvm.io/rubies/installing",
+        immediate: true,
+      },
+      {
+        id: "ruby-install",
+        name: "ruby-install",
+        note: "compiles any version from the tarball",
+        url: "https://github.com/postmodern/ruby-install",
+        immediate: true,
+      },
+      {
+        id: "rv-cli",
+        name: "rv",
+        note: "only installs rv-ruby binaries",
+        url: "https://github.com/spinel-coop/rv",
+        sameAs: "rv",
+      },
+    ],
+  },
+  {
+    name: "Prebuilt binaries",
+    targets: [
+      {
+        id: "ruby-builder",
+        name: "ruby/ruby-builder",
+        note: "used by setup-ruby",
+        url: "https://github.com/ruby/ruby-builder/releases/tag/ruby-{v}",
+        probe: (net, { version: v }) =>
+          lastModified(net, `https://github.com/ruby/ruby-builder/releases/download/ruby-${v}/ruby-${v}-ubuntu-24.04-x64.tar.gz`, 2),
+      },
+      {
         id: "jdx",
-        name: "jdx/ruby binaries",
-        note: "mise's precompiled Rubies",
+        name: "jdx/ruby",
+        note: "used by mise",
         url: "https://github.com/jdx/ruby/releases/tag/{v}",
         probe: async (net, { version }) => earliest((await atom(net, "jdx/ruby")).filter((e) => e.title === version)),
+      },
+      {
+        id: "rv",
+        name: "spinel-coop/rv-ruby",
+        note: "used by rv",
+        url: "https://github.com/spinel-coop/rv-ruby/releases",
+        probe: (net, { version: v }) =>
+          lastModified(net, `https://github.com/spinel-coop/rv-ruby/releases/latest/download/ruby-${v}.x86_64_linux.tar.gz`, 3),
       },
       {
         id: "rubyinstaller",
@@ -175,32 +219,6 @@ export const groups = [
         url: "https://github.com/oneclick/rubyinstaller2/releases",
         probe: async (net, { version }) =>
           earliest((await atom(net, "oneclick/rubyinstaller2")).filter((e) => e.tag.startsWith(`RubyInstaller-${version}-`))),
-      },
-      {
-        id: "rvm",
-        name: "RVM",
-        url: "https://github.com/rvm/rvm/commits/master/config/known",
-        probe: async (net, { version }) => {
-          const known = await net.text(`${raw}/rvm/rvm/master/config/known`);
-          return after(`ruby-${version}`).test(known.replace(/[[\]]/g, "")) ? found() : null;
-        },
-      },
-      {
-        id: "rv",
-        name: "rv",
-        url: "https://github.com/spinel-coop/rv-ruby/releases",
-        probe: (net, { version: v }) =>
-          lastModified(net, `https://github.com/spinel-coop/rv-ruby/releases/latest/download/ruby-${v}.x86_64_linux.tar.gz`, 3),
-      },
-      {
-        id: "ruby-install",
-        name: "ruby-install",
-        note: "version metadata",
-        url: "https://github.com/postmodern/ruby-versions/commits/master",
-        probe: async (net, { version }) => {
-          const versions = await net.text(`${raw}/postmodern/ruby-versions/master/ruby/versions.txt`);
-          return versions.split("\n").includes(version) ? found() : null;
-        },
       },
     ],
   },
@@ -289,8 +307,8 @@ export const groups = [
         id: "mise-action",
         name: "GitHub Actions mise-action",
         note: "Linux and macOS",
-        url: "https://github.com/jdx/ruby/releases/tag/{v}",
-        sameAs: "jdx",
+        url: "https://github.com/jdx/mise-action",
+        sameAs: "mise",
       },
       {
         id: "heroku-ci",

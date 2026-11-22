@@ -149,8 +149,12 @@ async function status(env) {
   const result = (target, release) => {
     if (target.series && !target.series.includes(release.series)) return { state: "none" };
     if (target.immediate) return { state: "found", at: release.released_at, exact: true };
-    const id = target.sameAs ?? target.id;
-    const check = checks.find((c) => c.version === release.version && c.target === id);
+    if (target.sameAs) {
+      const sources = [target.sameAs].flat().map((id) => result(targets.find((t) => t.id === id), release));
+      const found = sources.filter((r) => r.state === "found").sort((a, b) => a.at.localeCompare(b.at));
+      return found[0] ?? sources[0];
+    }
+    const check = checks.find((c) => c.version === release.version && c.target === target.id);
     if (!check?.found_at) return { state: "waiting", checkedAt: check?.checked_at };
     return { state: "found", at: check.found_at, exact: Boolean(check.exact), checkedAt: check.checked_at };
   };
